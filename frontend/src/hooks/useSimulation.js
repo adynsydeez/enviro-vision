@@ -4,27 +4,25 @@ import { MockWebSocket } from '../services/MockWebSocket';
 const DEFAULT_STATS = { burning: 0, burned: 0, burnedHa: 0, score: 100, tick: 0 };
 
 /**
- * Manages the simulation WebSocket (mock or real) for a given scenario.
- *
- * gridRef.current  — Map<"x,y", state>  updated directly, never triggers re-renders.
- *                    Read by FireCanvasLayer on every rAF frame.
- * stats            — React state, only updates on each WS tick (every 500ms).
- *                    Used by the stats overlay panel.
- *
- * To switch from mock to real backend:
- *   Replace `new MockWebSocket(scenario)` with `new WebSocket(url)` — nothing else changes.
+ * gridRef.current    — Map<"x,y", state>   hot path, no React
+ * burnAgeRef.current — Map<"x,y", number>  ticks a cell has been burning
+ *                      incremented each tick for every burning cell that
+ *                      didn't appear in changes (i.e. kept burning).
+ *                      Used by FireCanvasLayer to interpolate orange→red.
  */
 export function useSimulation(scenario) {
-  const gridRef = useRef(new Map());
-  const wsRef   = useRef(null);
+  const gridRef    = useRef(new Map());
+  const burnAgeRef = useRef(new Map());
+  const wsRef      = useRef(null);
 
   const [stats,  setStats]  = useState(DEFAULT_STATS);
-  const [status, setStatus] = useState('idle'); // idle | connecting | running | closed
+  const [status, setStatus] = useState('idle');
 
   useEffect(() => {
     if (!scenario) return;
 
     gridRef.current.clear();
+    burnAgeRef.current.clear();
     setStats(DEFAULT_STATS);
     setStatus('connecting');
 
@@ -38,13 +36,37 @@ export function useSimulation(scenario) {
 
       if (msg.type === 'FULL_SYNC') {
         gridRef.current.clear();
+        burnAgeRef.current.clear();
         for (const { x, y, s } of msg.grid) {
-          gridRef.current.set(`${x},${y}`, s);
+          const key = `${x},${y}`;
+          gridRef.current.set(key, s);
+          if (s === 1) burnAgeRef.current.set(key, 0);
         }
       } else if (msg.type === 'TICK_UPDATE') {
+        const changed = new Set();
+
         for (const { x, y, s } of msg.changes) {
-          if (s === 0) gridRef.current.delete(`${x},${y}`);
-          else         gridRef.current.set(`${x},${y}`, s);
+          const key = `${x},${y}`;
+          changed.add(key);
+
+          if (s === 0) {
+            gridRef.current.delete(key);
+            burnAgeRef.current.delete(key);
+          } else {
+            const prev = gridRef.current.get(key);
+            gridRef.current.set(key, s);
+
+            if (s === 1 && prev !== 1) {
+              burnAgeRef.current.set(key, 0); // newly ignited
+            } else if (s !== 1) {
+              burnAgeRef.current.delete(key); // burned out or other state
+            }
+          }
+        }
+
+        // Increment age for burning cells that stayed burning this tick
+        for (const [key, age] of burnAgeRef.current) {
+          if (!changed.has(key)) burnAgeRef.current.set(key, age + 1);
         }
       }
 
@@ -56,10 +78,9 @@ export function useSimulation(scenario) {
     return () => ws.close();
   }, [scenario]);
 
-  /** Send a tool interaction to the simulation. */
   const interact = useCallback((tool, x, y) => {
     wsRef.current?.send(JSON.stringify({ tool, x, y }));
   }, []);
 
-  return { gridRef, stats, status, interact };
+  return { gridRef, burnAgeRef, stats, status, interact };
 }

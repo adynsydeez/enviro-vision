@@ -16,21 +16,21 @@ function FlyToScenario({ center, zoom }) {
   return null;
 }
 
-function FireLayer({ gridRef, scenario }) {
+function FireLayer({ gridRef, burnAgeRef, scenario }) {
   const map = useMap();
   useEffect(() => {
     const bounds = getBounds(scenario.center, 5);
-    const layer  = new FireCanvasLayer(gridRef, bounds, GRID_SIZE);
+    const layer  = new FireCanvasLayer(gridRef, burnAgeRef, bounds, GRID_SIZE);
     map.addLayer(layer);
     return () => map.removeLayer(layer);
-  }, [map, gridRef, scenario]);
+  }, [map, gridRef, burnAgeRef, scenario]);
   return null;
 }
 
 export default function MapView({ scenario, onBack }) {
   const risk = RISK_LEVELS[scenario.risk];
   const bounds = useMemo(() => getBounds(scenario.center, 5), [scenario]);
-  const { gridRef, stats, status } = useSimulation(scenario);
+  const { gridRef, burnAgeRef, stats, status } = useSimulation(scenario);
 
   return (
     <div className="relative w-full h-screen">
@@ -50,7 +50,7 @@ export default function MapView({ scenario, onBack }) {
           url="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}.png"
         />
         <FlyToScenario center={scenario.center} zoom={scenario.zoom} />
-        <FireLayer gridRef={gridRef} scenario={scenario} />
+        <FireLayer gridRef={gridRef} burnAgeRef={burnAgeRef} scenario={scenario} />
       </MapContainer>
 
       {/* Overlay panel */}

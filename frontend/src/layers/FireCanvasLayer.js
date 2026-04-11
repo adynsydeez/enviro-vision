@@ -16,10 +16,11 @@ import L from 'leaflet';
  *   4 — Watered     cyan
  */
 const FireCanvasLayer = L.Layer.extend({
-  initialize(gridRef, latLngBounds, gridSize) {
-    this._gridRef  = gridRef;
-    this._bounds   = L.latLngBounds(latLngBounds);
-    this._gridSize = gridSize;
+  initialize(gridRef, burnAgeRef, latLngBounds, gridSize) {
+    this._gridRef    = gridRef;
+    this._burnAgeRef = burnAgeRef;
+    this._bounds     = L.latLngBounds(latLngBounds);
+    this._gridSize   = gridSize;
     this._canvas   = null;
     this._ctx      = null;
     this._frame    = null;
@@ -105,10 +106,14 @@ const FireCanvasLayer = L.Layer.extend({
       const py = nw.y + y * cellH;
 
       if (state === 1) {
+        // Interpolate orange (new) → deep red (old) based on burn age
+        const age     = this._burnAgeRef.current.get(key) ?? 0;
+        const t       = Math.min(age / 14, 1);              // 0=new, 1=about to burn out
+        const g       = Math.floor(140 * (1 - t) + 20 * t); // green channel: 140→20
         const flicker = 0.72 + Math.random() * 0.28;
         ctx.shadowBlur  = 14 * flicker;
-        ctx.shadowColor = `rgba(249,115,22,${flicker})`;
-        ctx.fillStyle   = `rgba(249,115,22,${flicker})`;
+        ctx.shadowColor = `rgba(249,${g},22,${flicker})`;
+        ctx.fillStyle   = `rgba(249,${g},22,${flicker})`;
         ctx.fillRect(px, py, cellW + 0.5, cellH + 0.5);
         ctx.shadowBlur  = 0;
       } else if (state === 3) {
