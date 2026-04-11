@@ -78,6 +78,21 @@ CREATE TABLE results   (id, team_name, scenario_id, score, ha_burned REAL, times
 - **Backend:** FastAPI, NumPy, SQLite (raw sqlite3, no ORM), Uvicorn
 - **No TypeScript** — pure JSX throughout
 
+## Fire Visualisation (decided, not yet implemented)
+
+Use **Option 1: HTML5 Canvas + Shadow Glow** rendered as a custom Leaflet layer.
+
+- One `L.Layer` subclass (~30 lines) that owns a `<canvas>` sized to the map container
+- Re-draws on Leaflet `moveend` / `zoomend` events using `map.latLngToContainerPoint()` for cell → pixel mapping
+- Per burning cell: `ctx.shadowBlur` + `ctx.shadowColor` for glow; fill colour shifts orange → deep red based on `burnAge / BURN_DURATION`
+- Burned cells: flat dark charcoal fill, no glow
+- Target: <5ms per render pass for a 100×100 grid
+- Grid state lives in `useRef(new Map())` keyed by `"x,y"` — written directly by the WebSocket handler, read directly by the canvas — never touches React state to avoid re-renders
+
+Alternatives considered and rejected: DOM/SVG rectangles (no glow, collapses at 100×100), canvas particles/deck.gl (4× render cost, complex, overkill for the audience), image overlay (500ms update lag, `toDataURL` GC pressure).
+
+See `frontend/design_assets/fire-viz-comparison.html` for a live side-by-side demo of all four options.
+
 ## Dashboard UI (planned)
 
 - **Left sidebar:** atmospheric sliders (temp 0–50°C, wind 0–100 km/h, humidity 0–100%), tool palette (Water Drop, Control Line, Backburn, Evac Zone), real-time stats
