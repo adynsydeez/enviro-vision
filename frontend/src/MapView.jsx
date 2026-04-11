@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
-import { ArrowLeft, Flame, MapPin, Zap, Shield } from 'lucide-react';
+import { ArrowLeft, Flame, MapPin, Zap, Shield, Sparkles } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import { RISK_LEVELS } from './data/scenarios';
 import { getBounds } from './utils/geo';
@@ -20,7 +20,7 @@ function FlyToScenario({ center, zoom }) {
   return null;
 }
 
-function FireLayer({ gridRef, burnAgeRef, scenario, windDir, windSpd }) {
+function FireLayer({ gridRef, burnAgeRef, scenario, windDir, windSpd, effects }) {
   const map      = useMap();
   const layerRef = useRef(null);
 
@@ -38,6 +38,10 @@ function FireLayer({ gridRef, burnAgeRef, scenario, windDir, windSpd }) {
   useEffect(() => {
     layerRef.current?.setWind(windDir, windSpd);
   }, [windDir, windSpd]);
+
+  useEffect(() => {
+    layerRef.current?.setEffects(effects);
+  }, [effects]);
 
   return null;
 }
@@ -124,6 +128,7 @@ export default function MapView({ scenario, onBack }) {
 
   const [windDir, setWindDir] = useState(DEFAULT_WIND_DIR);
   const [windSpd, setWindSpd] = useState(DEFAULT_WIND_SPD);
+  const [effects, setEffects] = useState(true);
 
   const handleWindChange = (dir, spd) => {
     setWindDir(dir);
@@ -155,19 +160,34 @@ export default function MapView({ scenario, onBack }) {
           scenario={scenario}
           windDir={windDir}
           windSpd={windSpd}
+          effects={effects}
         />
       </MapContainer>
 
       {/* Overlay panel */}
       <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2">
-        {/* Back button */}
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 bg-gray-950/90 hover:bg-gray-900 border border-gray-700 text-white text-sm font-medium px-3 py-2 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
-        >
-          <ArrowLeft size={15} />
-          Scenarios
-        </button>
+        {/* Top button row */}
+        <div className="flex gap-2">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 bg-gray-950/90 hover:bg-gray-900 border border-gray-700 text-white text-sm font-medium px-3 py-2 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
+          >
+            <ArrowLeft size={15} />
+            Scenarios
+          </button>
+          <button
+            onClick={() => setEffects(v => !v)}
+            title={effects ? 'Disable visual effects' : 'Enable visual effects'}
+            className={`flex items-center gap-1.5 border text-sm font-medium px-3 py-2 rounded-lg backdrop-blur-sm transition-colors cursor-pointer ${
+              effects
+                ? 'bg-orange-950/80 border-orange-700 text-orange-300 hover:bg-orange-900/80'
+                : 'bg-gray-950/90 border-gray-700 text-gray-500 hover:bg-gray-900'
+            }`}
+          >
+            <Sparkles size={15} />
+            FX
+          </button>
+        </div>
 
         {/* Scenario info */}
         <div className="bg-gray-950/90 border border-gray-700 rounded-xl backdrop-blur-sm p-4 w-64">

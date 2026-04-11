@@ -26,6 +26,7 @@ const FireCanvasLayer = L.Layer.extend({
     this._particles  = [];
     this._windDir    = 0;   // degrees FROM (meteorological)
     this._windSpd    = 0;   // km/h
+    this._effects    = true;
     this._lastTime   = null;
   },
 
@@ -63,6 +64,11 @@ const FireCanvasLayer = L.Layer.extend({
   setWind(windDir, windSpd) {
     this._windDir = windDir;
     this._windSpd = windSpd;
+  },
+
+  setEffects(enabled) {
+    this._effects = enabled;
+    if (!enabled) this._particles = [];
   },
 
   _resize() {
@@ -125,16 +131,21 @@ const FireCanvasLayer = L.Layer.extend({
       const py = nw.y + y * cellH;
 
       if (state === 1) {
-        const age     = this._burnAgeRef.current.get(key) ?? 0;
-        const t       = Math.min(age / 14, 1);
-        const g       = Math.floor(140 * (1 - t) + 20 * t);
-        const flicker = 0.72 + Math.random() * 0.28;
-        ctx.shadowBlur  = 14 * flicker;
-        ctx.shadowColor = `rgba(249,${g},22,${flicker})`;
-        ctx.fillStyle   = `rgba(249,${g},22,${flicker})`;
-        ctx.fillRect(px, py, cellW + 0.5, cellH + 0.5);
-        ctx.shadowBlur  = 0;
-        burningCells.push({ px: px + cellW * 0.5, py: py + cellH * 0.5 });
+        const age = this._burnAgeRef.current.get(key) ?? 0;
+        const t   = Math.min(age / 14, 1);
+        const g   = Math.floor(140 * (1 - t) + 20 * t);
+        if (this._effects) {
+          const flicker = 0.72 + Math.random() * 0.28;
+          ctx.shadowBlur  = 14 * flicker;
+          ctx.shadowColor = `rgba(249,${g},22,${flicker})`;
+          ctx.fillStyle   = `rgba(249,${g},22,${flicker})`;
+          ctx.fillRect(px, py, cellW + 0.5, cellH + 0.5);
+          ctx.shadowBlur  = 0;
+          burningCells.push({ px: px + cellW * 0.5, py: py + cellH * 0.5 });
+        } else {
+          ctx.fillStyle = `rgb(249,${g},22)`;
+          ctx.fillRect(px, py, cellW + 0.5, cellH + 0.5);
+        }
       } else if (state === 3) {
         ctx.fillStyle = 'rgba(59,130,246,0.85)';
         ctx.fillRect(px, py, cellW + 0.5, cellH + 0.5);
@@ -144,8 +155,8 @@ const FireCanvasLayer = L.Layer.extend({
       }
     }
 
-    // ── Ember particle system ────────────────────────────────────────────────
-    if (this._windSpd > 2 && burningCells.length > 0) {
+    // ── Ember particle system (effects only) ────────────────────────────────
+    if (this._effects && this._windSpd > 2 && burningCells.length > 0) {
       this._spawnParticles(burningCells, cellW, cellH, dt);
       this._updateAndDrawParticles(ctx, dt);
     }
