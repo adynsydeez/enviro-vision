@@ -98,48 +98,67 @@ df = pd.DataFrame({
 })
 
 bfc_labels = {
-    110: "Tall, closed forest",
-    120: "Closed forest",
-    210: "Tall open forest",
-    220: "Open forest",
-    230: "Low open forest",
-    310: "Broadleaf plantation",
-    321: "Radiata pine",
-    322: "Maritime pine",
-    323: "Southern pine",
-    324: "Other conifer",
-    330: "Other plantation",
-    411: "Tall woodland with grassy understory",
-    421: "Woodland with shrubby understory",
-    422: "Woodland with spinifex understory",
-    423: "Woodland with grassy understory",
-    424: "Woodland with sparse understory",
-    431: "Low woodland with shrubby understory",
-    432: "Low woodland with spinifex understory",
-    433: "Low woodland with grassy understory",
-    434: "Low woodland with sparse understory",
-    510: "Tall shrubland",
-    520: "Shrubland",
-    531: "Open shrubland with spinifex understory",
-    532: "Open shrubland with grassy understory",
-    533: "Open shrubland with sparse understory",
-    610: "Sedgeland",
-    620: "Hummock grassland",
-    631: "Grassland",
-    632: "Open grassland",
-    633: "Sparse grassland",
-    640: "Croplands",
-    700: "Horticulture",
-    800: "Wetlands",
-    910: "Water",
-    920: "Wildland urban interface 1",
-    930: "Wildland urban interface 2",
-    940: "Wildland urban interface 3",
-    950: "Built-up",
-    960: "Bare ground",
+    # ── Forests
+    # Dense closed canopy limits wind/drying but carries extreme intensity when ignited
+    110: ("Tall, closed forest",           0.65),
+    120: ("Closed forest",                 0.60),
+    # Open forests: high fuel loads + wind penetration = high risk
+    210: ("Tall open forest",              0.85),
+    220: ("Open forest",                   0.82),
+    230: ("Low open forest",               0.75),
+
+    # ── Plantations 
+    # Managed but dense; conifers highly flammable, broadleaf somewhat less so
+    310: ("Broadleaf plantation",          0.60),
+    321: ("Radiata pine",                  0.80),
+    322: ("Maritime pine",                 0.82),
+    323: ("Southern pine",                 0.78),
+    324: ("Other conifer",                 0.75),
+    330: ("Other plantation",              0.55),
+
+    # ── Woodlands 
+    # Grassy understory = fast-spreading surface fire; spinifex = extreme fire risk
+    411: ("Tall woodland with grassy understory",   0.88),
+    421: ("Woodland with shrubby understory",       0.80),
+    422: ("Woodland with spinifex understory",      0.95),  # Spinifex = extreme
+    423: ("Woodland with grassy understory",        0.85),
+    424: ("Woodland with sparse understory",        0.65),
+    431: ("Low woodland with shrubby understory",   0.75),
+    432: ("Low woodland with spinifex understory",  0.92),  # Spinifex = extreme
+    433: ("Low woodland with grassy understory",    0.80),
+    434: ("Low woodland with sparse understory",    0.58),
+
+    # ── Shrublands 
+    # Dense shrubs carry fire well; spinifex again highest
+    510: ("Tall shrubland",                        0.78),
+    520: ("Shrubland",                             0.72),
+    531: ("Open shrubland with spinifex understory", 0.90),
+    532: ("Open shrubland with grassy understory", 0.75),
+    533: ("Open shrubland with sparse understory", 0.55),
+
+    # ── Grasslands 
+    # Grass fires spread extremely fast, especially when dry
+    610: ("Sedgeland",                     0.50),
+    620: ("Hummock grassland",             0.88),  # Spinifex-dominated
+    631: ("Grassland",                     0.82),
+    632: ("Open grassland",                0.78),
+    633: ("Sparse grassland",              0.55),
+    640: ("Croplands",                     0.45),
+
+    # ── Other 
+    700: ("Horticulture",                  0.20),
+    800: ("Wetlands",                      0.10),
+    910: ("Water",                         0.00),
+    920: ("Wildland urban interface 1",    0.70),  # Bushland-adjacent, high exposure
+    930: ("Wildland urban interface 2",    0.55),
+    940: ("Wildland urban interface 3",    0.40),
+    950: ("Built-up",                      0.15),
+    960: ("Bare ground",                   0.05),
 }
 
-df["fuel_type_label"] = df["fuel_type_code"].map(bfc_labels).fillna("Unknown")
+# Identify risk and labels from the bfc_labels dictionary
+df["fuel_type_label"] = df["fuel_type_code"].apply(lambda x: bfc_labels.get(x, ("Unknown", 0.5))[0])
+df["flammability"] = df["fuel_type_code"].apply(lambda x: bfc_labels.get(x, ("Unknown", 0.5))[1])
 
 output_path = os.path.join(base_dir, "cropped_fuel_types.csv")
 df.to_csv(output_path, index=False)

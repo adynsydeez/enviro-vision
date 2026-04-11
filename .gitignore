@@ -24,10 +24,7 @@ dist-ssr/
 .env
 .env.local
 .env.*.local
-<<<<<<< HEAD
 .venv/
-=======
->>>>>>> 2369ca22100f97397129ddd62148b3910f3b24ae
 
 # logs
 *.log
@@ -49,12 +46,7 @@ Thumbs.db
 # Vite cache
 .vite/
 
-<<<<<<< HEAD
 # coverage (if you add tests later)
 coverage/
 
 data/
-=======
-# coverage
-coverage/
->>>>>>> 2369ca22100f97397129ddd62148b3910f3b24ae
