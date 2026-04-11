@@ -32,8 +32,9 @@ class GridFireSimulation:
 
     def _load_real_data(self):
         """Loads processed fuel and elevation CSVs and interpolates onto the grid."""
-        fuel_path = os.path.join(self.base_dir, "cropped_fuel_types.csv")
-        elev_path = os.path.join(self.base_dir, "cropped_elevation.csv")
+        output_data_dir = os.path.join(self.base_dir, "output_data")
+        fuel_path = os.path.join(output_data_dir, "cropped_fuel_types.csv")
+        elev_path = os.path.join(output_data_dir, "cropped_elevation.csv")
 
         if not os.path.exists(fuel_path) or not os.path.exists(elev_path):
             print("Warning: Real data files not found. Using synthetic landscape.")

@@ -49,4 +49,5 @@ Thumbs.db
 # coverage (if you add tests later)
 coverage/
 
-data/
+input_data/
+output_data/

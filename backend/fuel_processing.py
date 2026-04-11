@@ -11,11 +11,13 @@ from shapely.geometry import box, Point
 
 # Define paths relative to script location
 base_dir = os.path.dirname(os.path.abspath(__file__))
-data_dir = os.path.join(base_dir, "data")
+input_data_dir = os.path.join(base_dir, "input_data")
+output_data_dir = os.path.join(base_dir, "output_data")
 abs_states_dir = os.path.join(base_dir, "abs_states")
 
 # Ensure directories exist
-os.makedirs(data_dir, exist_ok=True)
+os.makedirs(input_data_dir, exist_ok=True)
+os.makedirs(output_data_dir, exist_ok=True)
 
 abs_url = (
     "https://www.abs.gov.au/statistics/standards/australian-statistical-geography-standard-asgs-edition-3/"
@@ -37,7 +39,7 @@ states = gpd.read_file(shp_path)
 queensland = states[states["STE_NAME21"] == "Queensland"]
 
 # Correct path to the TIF file
-tif_path = os.path.join(data_dir, "Bushfire fuel classification fuel types map release 2.tif")
+tif_path = os.path.join(input_data_dir, "Bushfire fuel classification fuel types map release 2.tif")
 
 if not os.path.exists(tif_path):
     raise FileNotFoundError(f"TIF file not found at: {tif_path}")
@@ -160,7 +162,7 @@ bfc_labels = {
 df["fuel_type_label"] = df["fuel_type_code"].apply(lambda x: bfc_labels.get(x, ("Unknown", 0.5))[0])
 df["flammability"] = df["fuel_type_code"].apply(lambda x: bfc_labels.get(x, ("Unknown", 0.5))[1])
 
-output_path = os.path.join(base_dir, "cropped_fuel_types.csv")
+output_path = os.path.join(output_data_dir, "cropped_fuel_types.csv")
 df.to_csv(output_path, index=False)
 
 print(f"Done! Saved {len(df):,} rows to '{output_path}'")
