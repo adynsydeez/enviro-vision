@@ -37,6 +37,7 @@ export class MockWebSocket {
     this._burnAge   = new Uint8Array(GRID_SIZE * GRID_SIZE);
     this._tick      = 0;
     this._interval  = null;
+    this._paused    = false;
     this._windDir   = WIND_DIR;
     this._windSpd   = WIND_SPD;
 
@@ -63,7 +64,10 @@ export class MockWebSocket {
 
   send(raw) {
     try {
-      this._handleInteraction(JSON.parse(raw));
+      const msg = JSON.parse(raw);
+      if (msg.action === 'pause')  { this._pause();  return; }
+      if (msg.action === 'resume') { this._resume(); return; }
+      this._handleInteraction(msg);
     } catch { /* ignore malformed messages */ }
   }
 
@@ -77,6 +81,19 @@ export class MockWebSocket {
     this._windDir = ((dir % 360) + 360) % 360;
     this._windSpd = Math.max(0, Math.min(100, spd));
     this._updateWindVec();
+  }
+
+  _pause() {
+    if (this._paused) return;
+    clearInterval(this._interval);
+    this._interval = null;
+    this._paused   = true;
+  }
+
+  _resume() {
+    if (!this._paused) return;
+    this._paused   = false;
+    this._interval = setInterval(() => this._tick_(), TICK_MS);
   }
 
   // ── Internal ────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
-import { ArrowLeft, Flame, MapPin, Zap, Shield, Sparkles } from 'lucide-react';
+import { ArrowLeft, Flame, MapPin, Zap, Shield, Sparkles, Play, Pause } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import { RISK_LEVELS } from './data/scenarios';
 import { getBounds } from './utils/geo';
@@ -124,7 +124,7 @@ function bearingLabel(deg) {
 export default function MapView({ scenario, onBack }) {
   const risk   = RISK_LEVELS[scenario.risk];
   const bounds = useMemo(() => getBounds(scenario.center, 5), [scenario]);
-  const { gridRef, burnAgeRef, stats, status, setWind } = useSimulation(scenario);
+  const { gridRef, burnAgeRef, stats, status, paused, setWind, togglePause } = useSimulation(scenario);
 
   const [windDir, setWindDir] = useState(DEFAULT_WIND_DIR);
   const [windSpd, setWindSpd] = useState(DEFAULT_WIND_SPD);
@@ -176,6 +176,13 @@ export default function MapView({ scenario, onBack }) {
             Scenarios
           </button>
           <button
+            onClick={togglePause}
+            title={paused ? 'Resume simulation' : 'Pause simulation'}
+            className="flex items-center gap-1.5 bg-gray-950/90 hover:bg-gray-900 border border-gray-700 text-white text-sm font-medium px-3 py-2 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
+          >
+            {paused ? <Play size={15} /> : <Pause size={15} />}
+          </button>
+          <button
             onClick={() => setEffects(v => !v)}
             title={effects ? 'Disable visual effects' : 'Enable visual effects'}
             className={`flex items-center gap-1.5 border text-sm font-medium px-3 py-2 rounded-lg backdrop-blur-sm transition-colors cursor-pointer ${
@@ -216,11 +223,12 @@ export default function MapView({ scenario, onBack }) {
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Live Stats</span>
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+              paused             ? 'bg-blue-950 text-blue-400'    :
               status === 'running'    ? 'bg-green-950 text-green-400' :
               status === 'connecting' ? 'bg-yellow-950 text-yellow-400' :
                                        'bg-gray-800 text-gray-500'
             }`}>
-              {status}
+              {paused ? 'paused' : status}
             </span>
           </div>
 

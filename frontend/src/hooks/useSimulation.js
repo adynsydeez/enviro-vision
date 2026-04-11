@@ -17,6 +17,7 @@ export function useSimulation(scenario) {
 
   const [stats,  setStats]  = useState(DEFAULT_STATS);
   const [status, setStatus] = useState('idle');
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
     if (!scenario) return;
@@ -25,6 +26,7 @@ export function useSimulation(scenario) {
     burnAgeRef.current.clear();
     setStats(DEFAULT_STATS);
     setStatus('connecting');
+    setPaused(false);
 
     const ws = new MockWebSocket(scenario);
     wsRef.current = ws;
@@ -86,5 +88,13 @@ export function useSimulation(scenario) {
     wsRef.current?.setWind(dir, spd);
   }, []);
 
-  return { gridRef, burnAgeRef, stats, status, interact, setWind };
+  const togglePause = useCallback(() => {
+    setPaused(p => {
+      const next = !p;
+      wsRef.current?.send(JSON.stringify({ action: next ? 'pause' : 'resume' }));
+      return next;
+    });
+  }, []);
+
+  return { gridRef, burnAgeRef, stats, status, paused, interact, setWind, togglePause };
 }
