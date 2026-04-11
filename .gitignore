@@ -9,7 +9,7 @@ dist-ssr/
 .env
 .env.local
 .env.*.local
-.venv
+.venv/
 
 # logs
 npm-debug.log*
@@ -30,3 +30,5 @@ Thumbs.db
 
 # coverage (if you add tests later)
 coverage/
+
+data/
