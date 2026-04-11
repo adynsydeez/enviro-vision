@@ -110,7 +110,7 @@ function ScenarioCard({ scenario, onSelect }) {
   );
 }
 
-export default function LandingPage({ onSelect }) {
+export default function LandingPage({ onSelect, onStartQuiz }) {
   const [view, setView] = useState('grid');
 
   return (
@@ -125,6 +125,12 @@ export default function LandingPage({ onSelect }) {
             <span className="font-bold text-white tracking-wide text-sm">FireCommander</span>
             <span className="text-gray-600">·</span>
             <span className="text-gray-400 text-sm">Play with fire. Safely.</span>
+            <button 
+              onClick={onStartQuiz}
+              className="ml-4 text-xs font-bold px-3 py-1.5 bg-orange-500/10 border border-orange-500/30 text-orange-400 rounded-lg hover:bg-orange-500/20 transition-all cursor-pointer"
+            >
+              Take the Quiz
+            </button>
           </div>
           <div className="flex items-center bg-gray-950 rounded-lg p-0.5 gap-0.5">
             <button
