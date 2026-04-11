@@ -73,6 +73,12 @@ export class MockWebSocket {
     this.onclose?.({ type: 'close' });
   }
 
+  setWind(dir, spd) {
+    this._windDir = ((dir % 360) + 360) % 360;
+    this._windSpd = Math.max(0, Math.min(100, spd));
+    this._updateWindVec();
+  }
+
   // ── Internal ────────────────────────────────────────────────────────────────
 
   _updateWindVec() {

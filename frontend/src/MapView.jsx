@@ -1,12 +1,16 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
-import { ArrowLeft, Flame, MapPin, Zap, Shield, Wind } from 'lucide-react';
+import { ArrowLeft, Flame, MapPin, Zap, Shield } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import { RISK_LEVELS } from './data/scenarios';
 import { getBounds } from './utils/geo';
 import { useSimulation } from './hooks/useSimulation';
 import { GRID_SIZE } from './services/MockWebSocket';
 import FireCanvasLayer from './layers/FireCanvasLayer';
+
+// Default wind matches the MockWebSocket constants
+const DEFAULT_WIND_DIR = 45;
+const DEFAULT_WIND_SPD = 30;
 
 function FlyToScenario({ center, zoom }) {
   const map = useMap();
@@ -31,7 +35,6 @@ function FireLayer({ gridRef, burnAgeRef, scenario, windDir, windSpd }) {
     };
   }, [map, gridRef, burnAgeRef, scenario]);
 
-  // Push wind updates to the layer without recreating it
   useEffect(() => {
     layerRef.current?.setWind(windDir, windSpd);
   }, [windDir, windSpd]);
@@ -39,24 +42,94 @@ function FireLayer({ gridRef, burnAgeRef, scenario, windDir, windSpd }) {
   return null;
 }
 
-// Compass arrow pointing in the downwind direction (where fire spreads)
-function WindArrow({ windDir }) {
-  const downwind = (windDir + 180) % 360;
+// Compass rose — click or drag anywhere to set wind direction
+function WindCompass({ windDir, onChange }) {
+  const svgRef = useRef(null);
+
+  const getAngle = (e) => {
+    const rect = svgRef.current.getBoundingClientRect();
+    const dx = e.clientX - (rect.left + rect.width  / 2);
+    const dy = e.clientY - (rect.top  + rect.height / 2);
+    return Math.round(((Math.atan2(dx, -dy) * 180 / Math.PI) + 360) % 360);
+  };
+
+  const onPointerDown = (e) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    onChange(getAngle(e));
+  };
+
+  const onPointerMove = (e) => {
+    if (e.buttons === 0) return;
+    onChange(getAngle(e));
+  };
+
+  const R    = 34;
+  const fRad = windDir * Math.PI / 180;
+  const dRad = ((windDir + 180) % 360) * Math.PI / 180;
+  const ax   = 50 + R * Math.sin(fRad);
+  const ay   = 50 - R * Math.cos(fRad);
+  const dx   = 50 + 20 * Math.sin(dRad);
+  const dy   = 50 - 20 * Math.cos(dRad);
+
   return (
     <svg
-      width="20" height="20" viewBox="0 0 20 20"
-      style={{ transform: `rotate(${downwind}deg)`, display: 'inline-block' }}
+      ref={svgRef}
+      width="80" height="80" viewBox="0 0 100 100"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      style={{ cursor: 'crosshair', userSelect: 'none', touchAction: 'none', flexShrink: 0 }}
     >
-      <line x1="10" y1="16" x2="10" y2="4" stroke="#fb923c" strokeWidth="2" strokeLinecap="round" />
-      <polyline points="6,8 10,4 14,8" fill="none" stroke="#fb923c" strokeWidth="2" strokeLinejoin="round" />
+      <circle cx="50" cy="50" r="46" fill="rgba(0,0,0,0.35)" stroke="#374151" strokeWidth="1.5" />
+      {/* Cardinal ticks */}
+      {[0, 90, 180, 270].map(a => {
+        const r = a * Math.PI / 180;
+        return (
+          <line key={a}
+            x1={50 + 40 * Math.sin(r)} y1={50 - 40 * Math.cos(r)}
+            x2={50 + 46 * Math.sin(r)} y2={50 - 46 * Math.cos(r)}
+            stroke="#4b5563" strokeWidth="2"
+          />
+        );
+      })}
+      {/* Labels */}
+      {[
+        { a: 0,   l: 'N', x: 50, y: 10 },
+        { a: 90,  l: 'E', x: 90, y: 53 },
+        { a: 180, l: 'S', x: 50, y: 94 },
+        { a: 270, l: 'W', x: 10, y: 53 },
+      ].map(({ a, l, x, y }) => (
+        <text key={a} x={x} y={y} textAnchor="middle" dominantBaseline="middle"
+          fill="#6b7280" fontSize="9" fontFamily="system-ui,sans-serif">{l}</text>
+      ))}
+      {/* Downwind direction (where fire spreads) — dashed */}
+      <line x1="50" y1="50" x2={dx} y2={dy}
+        stroke="#fb923c" strokeWidth="1.5" strokeOpacity="0.35" strokeDasharray="3 2" />
+      {/* Wind FROM arrow */}
+      <line x1="50" y1="50" x2={ax} y2={ay}
+        stroke="#fb923c" strokeWidth="2.5" strokeLinecap="round" />
+      <circle cx={ax} cy={ay} r="4.5" fill="#fb923c" />
+      <circle cx="50"  cy="50" r="3"   fill="#4b5563" />
     </svg>
   );
+}
+
+function bearingLabel(deg) {
+  return ['N','NE','E','SE','S','SW','W','NW'][Math.round(((deg % 360) + 360) % 360 / 45) % 8];
 }
 
 export default function MapView({ scenario, onBack }) {
   const risk   = RISK_LEVELS[scenario.risk];
   const bounds = useMemo(() => getBounds(scenario.center, 5), [scenario]);
-  const { gridRef, burnAgeRef, stats, status } = useSimulation(scenario);
+  const { gridRef, burnAgeRef, stats, status, setWind } = useSimulation(scenario);
+
+  const [windDir, setWindDir] = useState(DEFAULT_WIND_DIR);
+  const [windSpd, setWindSpd] = useState(DEFAULT_WIND_SPD);
+
+  const handleWindChange = (dir, spd) => {
+    setWindDir(dir);
+    setWindSpd(spd);
+    setWind(dir, spd);
+  };
 
   return (
     <div className="relative w-full h-screen">
@@ -80,8 +153,8 @@ export default function MapView({ scenario, onBack }) {
           gridRef={gridRef}
           burnAgeRef={burnAgeRef}
           scenario={scenario}
-          windDir={stats.windDir}
-          windSpd={stats.windSpd}
+          windDir={windDir}
+          windSpd={windSpd}
         />
       </MapContainer>
 
@@ -159,28 +232,43 @@ export default function MapView({ scenario, onBack }) {
               }`}>{stats.score}</p>
               <p className="text-gray-600 text-xs">/ 100</p>
             </div>
+          </div>
+        </div>
 
-            {/* Wind row — full width */}
-            <div className="col-span-2 pt-2 border-t border-gray-800 flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-xs text-gray-500">
-                <Wind size={11} className="text-orange-400" />
-                Wind
-              </span>
-              <span className="flex items-center gap-2 text-xs text-gray-300">
-                <WindArrow windDir={stats.windDir} />
-                <span className="font-medium">{stats.windSpd} km/h</span>
-                <span className="text-gray-600">{bearingLabel(stats.windDir)}</span>
-              </span>
+        {/* Wind controls */}
+        <div className="bg-gray-950/90 border border-gray-700 rounded-xl backdrop-blur-sm p-4 w-64">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Wind</p>
+          <div className="flex items-start gap-3">
+            <WindCompass windDir={windDir} onChange={dir => handleWindChange(dir, windSpd)} />
+
+            <div className="flex-1 flex flex-col gap-3 pt-0.5">
+              {/* Direction readout */}
+              <div>
+                <p className="text-xs text-gray-500 mb-0.5">Direction</p>
+                <p className="text-white font-bold text-sm leading-none">
+                  {windDir}°&nbsp;
+                  <span className="text-orange-400">{bearingLabel(windDir)}</span>
+                </p>
+                <p className="text-gray-600 text-xs">wind from</p>
+              </div>
+
+              {/* Speed slider */}
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Speed</p>
+                <input
+                  type="range" min="0" max="100" step="1"
+                  value={windSpd}
+                  onChange={e => handleWindChange(windDir, +e.target.value)}
+                  className="w-full accent-orange-500 cursor-pointer"
+                />
+                <p className="text-white font-bold text-sm leading-none mt-0.5">
+                  {windSpd}&nbsp;<span className="text-gray-500 font-normal text-xs">km/h</span>
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
   );
-}
-
-// Convert degrees to cardinal + intercardinal label
-function bearingLabel(deg) {
-  const dirs = ['N','NE','E','SE','S','SW','W','NW'];
-  return dirs[Math.round(deg / 45) % 8];
 }

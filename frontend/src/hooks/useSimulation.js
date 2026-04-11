@@ -82,5 +82,9 @@ export function useSimulation(scenario) {
     wsRef.current?.send(JSON.stringify({ tool, x, y }));
   }, []);
 
-  return { gridRef, burnAgeRef, stats, status, interact };
+  const setWind = useCallback((dir, spd) => {
+    wsRef.current?.setWind(dir, spd);
+  }, []);
+
+  return { gridRef, burnAgeRef, stats, status, interact, setWind };
 }
