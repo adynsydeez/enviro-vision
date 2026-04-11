@@ -14,6 +14,8 @@ import VegetationCanvasLayer from './layers/VegetationCanvasLayer';
 import WindCanvasLayer from './layers/WindCanvasLayer';
 import ToolPalette from './components/ToolPalette';
 import MapClickHandler from './components/MapClickHandler';
+import Mascot from './components/Mascot';
+import { useMascot } from './hooks/useMascot';
 
 // Default wind matches the MockWebSocket constants
 const DEFAULT_WIND_DIR = 45;
@@ -251,6 +253,45 @@ export default function MapView({ scenario, onBack }) {
   const { gridRef, burnAgeRef, vegGridRef, stats, status, paused, interact, setWind, togglePause } =
     useSimulation(scenario);
 
+  const mascotHook = useMascot(scenario);
+  const [userPaused, setUserPaused] = useState(false);
+
+  // Handle automatic pausing for Mascot intro
+  useEffect(() => {
+    if (mascotHook.isIntroActive && !paused) {
+      togglePause();
+    } else if (!mascotHook.isIntroActive && paused && !userPaused) {
+      togglePause();
+    }
+  }, [mascotHook.isIntroActive, paused, userPaused, togglePause]);
+
+  // Idle triggers
+  useEffect(() => {
+    if (mascotHook.isIntroActive || paused) return;
+
+    const interval = setInterval(() => {
+      mascotHook.triggerRandom('idle');
+    }, 45000);
+
+    return () => clearInterval(interval);
+  }, [mascotHook.isIntroActive, paused, mascotHook.triggerRandom]);
+
+  // Victory/Defeat triggers
+  useEffect(() => {
+    if (mascotHook.isIntroActive) return;
+
+    if (stats.score === 0) {
+      mascotHook.triggerRandom('defeat');
+    } else if (stats.burning === 0 && stats.tick > 100) {
+      mascotHook.triggerRandom('victory');
+    }
+  }, [stats.score, stats.burning, stats.tick, mascotHook.isIntroActive, mascotHook.triggerRandom]);
+
+  const handleTogglePause = () => {
+    setUserPaused(!paused);
+    togglePause();
+  };
+
   // Which top-level layers are toggled on (Set of layer ids)
   const [activeLayers, setActiveLayers] = useState(new Set(['fire']));
 
@@ -285,6 +326,7 @@ export default function MapView({ scenario, onBack }) {
     setWindDir(dir);
     setWindSpd(spd);
     setWind(dir, spd);
+    mascotHook.triggerRandom('wind');
   };
 
   const handleToolSelect = (id) => {
@@ -304,6 +346,7 @@ export default function MapView({ scenario, onBack }) {
     setCooldownActive(true);
     clearTimeout(cooldownTimerRef.current);
     cooldownTimerRef.current = setTimeout(() => setCooldownActive(false), 3000);
+    mascotHook.triggerRandom('water');
   };
 
   useEffect(() => {
@@ -385,7 +428,7 @@ export default function MapView({ scenario, onBack }) {
             Scenarios
           </button>
           <button
-            onClick={togglePause}
+            onClick={handleTogglePause}
             title={paused ? 'Resume simulation' : 'Pause simulation'}
             className="flex items-center gap-1.5 bg-gray-950/85 hover:bg-gray-900/70 border border-gray-700/50 backdrop-blur-md text-white text-sm font-medium px-3 py-2 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
           >
@@ -550,6 +593,7 @@ export default function MapView({ scenario, onBack }) {
           onToolSelect={handleToolSelect}
         />
       )}
+      <Mascot mascotHook={mascotHook} />
     </div>
   );
 }
