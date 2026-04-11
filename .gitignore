@@ -1,3 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+venv/
+env/
+
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+
 # dependencies
 node_modules/
 
@@ -9,9 +24,13 @@ dist-ssr/
 .env
 .env.local
 .env.*.local
+<<<<<<< HEAD
 .venv/
+=======
+>>>>>>> 2369ca22100f97397129ddd62148b3910f3b24ae
 
 # logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -24,11 +43,18 @@ Thumbs.db
 # IDEs
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # Vite cache
 .vite/
 
+<<<<<<< HEAD
 # coverage (if you add tests later)
 coverage/
 
 data/
+=======
+# coverage
+coverage/
+>>>>>>> 2369ca22100f97397129ddd62148b3910f3b24ae
