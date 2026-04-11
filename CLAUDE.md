@@ -78,6 +78,93 @@ CREATE TABLE results   (id, team_name, scenario_id, score, ha_burned REAL, times
 - **Backend:** FastAPI, NumPy, SQLite (raw sqlite3, no ORM), Uvicorn
 - **No TypeScript** — pure JSX throughout
 
+## Simulation Data Pipeline
+
+### Sequence — what happens when a scenario loads
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant MV as MapView.jsx
+    participant Hook as useSimulation
+    participant WS as MockWebSocket
+    participant Ref as gridRef (useRef)
+    participant Stat as stats (useState)
+    participant Layer as FireCanvasLayer
+    participant UI as Stats Panel
+
+    User->>MV: selects scenario
+    MV->>Hook: useSimulation(scenario)
+    Hook->>WS: new MockWebSocket(scenario)
+    WS-->>Hook: onopen
+    WS-->>Hook: onmessage — FULL_SYNC
+    Hook->>Ref: populate all cells (Map)
+    Hook->>Stat: set initial stats
+    Stat-->>UI: re-render
+
+    loop every 500ms (CA tick)
+        WS-->>Hook: onmessage — TICK_UPDATE
+        Hook->>Ref: write changed cells only
+        Hook->>Stat: update burned / score
+        Stat-->>UI: re-render
+    end
+
+    loop ~60fps (requestAnimationFrame)
+        Layer->>Ref: read gridRef.current
+        Layer->>Layer: draw cells to canvas
+    end
+```
+
+### Architecture — who owns what
+
+```mermaid
+flowchart TD
+    subgraph React["React (re-renders)"]
+        MV[MapView.jsx]
+        Hook[useSimulation hook]
+        Stat[stats — useState]
+        UI[Stats Overlay]
+    end
+
+    subgraph Hot["Hot Path (no React)"]
+        Ref[(gridRef\nuseRef Map\n'x,y' → state)]
+        Layer[FireCanvasLayer\nLeaflet Layer]
+        Canvas[canvas element]
+    end
+
+    subgraph Mock["MockWebSocket"]
+        CA[CA Simulation\nAlexandridis model]
+        Transport[Fake WS Transport\nonmessage / send]
+    end
+
+    CA -->|every 500ms| Transport
+    Transport -->|FULL_SYNC / TICK_UPDATE| Hook
+    Hook -->|write cells| Ref
+    Hook -->|update| Stat
+    Stat -->|re-render| UI
+    MV -->|passes gridRef| Layer
+    Layer -->|rAF loop reads| Ref
+    Layer -->|draws glow| Canvas
+```
+
+### Key design rules
+- `gridRef` (useRef Map, keyed `"x,y"`) is the bridge between hook and canvas — never goes through React state
+- React only re-renders when `stats` changes (every 500ms tick), not on every canvas frame (~60fps)
+- `MockWebSocket` mirrors the browser WebSocket API exactly — swapping to `new WebSocket(url)` is one line in `useSimulation`
+- `FireCanvasLayer` is transport-agnostic — it only reads `gridRef`, knows nothing about WS or React
+
+### Planned file structure
+```
+src/
+  services/
+    MockWebSocket.js      ← CA simulation + fake WS transport
+  hooks/
+    useSimulation.js      ← owns WS, writes gridRef, updates stats state
+  layers/
+    FireCanvasLayer.js    ← Leaflet layer, rAF loop, reads gridRef
+  MapView.jsx             ← join point: mounts layer, passes gridRef from hook
+```
+
 ## Fire Visualisation (decided, not yet implemented)
 
 Use **Option 1: HTML5 Canvas + Shadow Glow** rendered as a custom Leaflet layer.
