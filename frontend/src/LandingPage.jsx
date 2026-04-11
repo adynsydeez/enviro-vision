@@ -119,7 +119,7 @@ export default function LandingPage({ onSelect, onStartQuiz }) {
 
       {/* Header */}
       <header className="relative z-10 border-b border-gray-800/60 px-6 py-2.5 shrink-0">
-        <div className="flex items-center justify-between w-full">
+        <div className="flex items-center justify-between items-center w-full">
           <div className="flex items-center gap-3">
             <img src={mascot} alt="FireCommander mascot" className="w-8 h-8 object-contain" />
             <span className="font-bold text-white tracking-wide text-sm">FireCommander</span>
