@@ -21,13 +21,14 @@ const Mascot = ({ mascotHook }) => {
       )}
 
       {/* Mascot and Bubble Container */}
-      <div className="fixed bottom-4 left-4 flex flex-col items-center z-[2001] pointer-events-none">
+      <div className="fixed bottom-4 left-4 flex flex-col items-start z-[2001] pointer-events-none">
         
         {/* Speech Bubble */}
         {showBubble && currentMessage && (
           <div 
             className={`
               relative mb-4 max-w-[280px] md:max-w-xs pointer-events-auto mascot-bubble-animate
+              flex flex-col items-start
               ${isIntroActive ? 'cursor-pointer' : ''}
             `}
             onClick={isIntroActive ? nextIntro : undefined}
@@ -41,8 +42,8 @@ const Mascot = ({ mascotHook }) => {
                 {currentMessage}
               </p>
             </div>
-            {/* Pointer triangle */}
-            <div className="mascot-bubble-tail" />
+            {/* Pointer triangle - positioned to point at the mascot center (w-24/w-32) */}
+            <div className="mascot-bubble-tail left-12 md:left-16" />
           </div>
         )}
 
