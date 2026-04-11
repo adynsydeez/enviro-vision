@@ -1,9 +1,10 @@
 import L from 'leaflet';
 
 export default L.Layer.extend({
-  initialize(bounds, gridSize) {
+  initialize(bounds, gridSize, options = {}) {
     this._bounds = L.latLngBounds(bounds);
     this._gridSize = gridSize;
+    this._animated = options.animated !== false; // default true
     this._canvas = null;
     this._ctx = null;
     this._frame = null;
@@ -25,8 +26,16 @@ export default L.Layer.extend({
     this._ctx = canvas.getContext('2d');
     this._resize();
     map.on('resize', this._resize, this);
-    this._lastTime = performance.now();
-    this._frame = requestAnimationFrame((t) => this._loop(t));
+    if (this._animated) {
+      this._lastTime = performance.now();
+      this._frame = requestAnimationFrame((t) => this._loop(t));
+    } else {
+      this.draw();
+    }
+  },
+
+  redraw() {
+    this.draw();
   },
 
   onRemove(map) {
