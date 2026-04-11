@@ -16,6 +16,25 @@ Wildfire spread is rapid and unpredictable, making real-world training for firef
 
 The platform uses a client-server architecture optimized for low-latency simulation updates:
 
+```mermaid
+graph TD
+    subgraph "Frontend (React + Leaflet)"
+        UI[Dashboard UI] -->|Update Env/Tools| WS_Client[WebSocket Client]
+        MAP[Leaflet Map] --- CANV[Canvas Overlay]
+        WS_Client -->|Sparse Updates| CANV
+    end
+
+    subgraph "Backend (FastAPI + Python)"
+        WS_Server[WebSocket Server] <--> WS_Client
+        REST[REST API] <--> UI
+        SIM[Sim Engine / NumPy] <--> WS_Server
+        DB[(SQLite)] <--> REST
+    end
+
+    SIM -->|Calculate Tick| SIM
+    REST -->|Init Scenario| SIM
+```
+
 - **Frontend (React + Leaflet):**
   - **`react-leaflet`**: Renders the base map layers.
   - **HTML5 `<Canvas>` Layer**: A custom overlay that renders the fire grid as glowing particles.
@@ -29,14 +48,27 @@ The platform uses a client-server architecture optimized for low-latency simulat
 
 The simulation is a **State-Based Cellular Automata (CA)** model running on a 100x100 grid (extensible to 500x500).
 
-### 4.1. Data Layers
+### 4.1. Cell States & Transitions
 
-- **Static Layers (Pre-calculated):**
-  - **Elevation Map**: 100x100 grid of altitude data.
-  - **Slope Layer**: 100x100 grid of pre-calculated uphill gradients (calculated once per scenario load).
-  - **Fuel Map**: 100x100 grid of vegetation type and density factors ($P_{veg}, P_{den}$).
-- **Dynamic State Layer:**
-  - **Cell State**: `0`: Unburned, `1`: Burning, `2`: Burned, `3`: Control Line, `4`: Watered.
+```mermaid
+stateDiagram-v2
+    [*] --> Unburned
+    Unburned --> Burning : P_burn > rand()
+    Burning --> Burned : Burn Duration Elapsed
+    Unburned --> ControlLine : User Deploy Tool
+    Unburned --> Watered : Water Drop Tool
+    Watered --> Unburned : Drying Over Time
+    Burning --> Watered : Water Drop Tool
+    Burned --> [*]
+```
+
+- **Data Layers:**
+  - **Static Layers (Pre-calculated):**
+    - **Elevation Map**: 100x100 grid of altitude data.
+    - **Slope Layer**: 100x100 grid of pre-calculated uphill gradients (calculated once per scenario load).
+    - **Fuel Map**: 100x100 grid of vegetation type and density factors ($P_{veg}, P_{den}$).
+  - **Dynamic State Layer:**
+    - **Cell State**: `0`: Unburned, `1`: Burning, `2`: Burned, `3`: Control Line, `4`: Watered.
 
 ### 4.2. Transition Rules (Alexandridis CA Model)
 
@@ -56,7 +88,7 @@ The dashboard is designed for rapid tactical decision-making:
 - **Sidebar (Left):**
   - **Atmospheric Sliders**: Real-time control of Temp (0-50°C), Wind (0-100 km/h), and Humidity (0-100%).
   - **Tool Palette**: Icons for Water Drop, Control Line, Backburn, and Evac Zone.
-  - **Post-Incident Report**: Real-time stats on fire impact.
+  - **Post-Incident Report**: Real-time stats on fire impact (Hectares burned, Containment score).
 - **Map (Right):**
   - A full-screen interactive map with a glowing, flickering fire overlay rendered on a canvas.
   - **Interactivity**: Clicking on the map with an "armed" tool sends the GPS coordinates to the backend to apply mitigation effects.
@@ -69,11 +101,24 @@ The dashboard is designed for rapid tactical decision-making:
 - `POST /api/simulation/start?scenario_id={id}`: Reset and initialize a global simulation session.
 - `PATCH /api/simulation/env`: Update environmental factors (Temp, Wind, Humidity).
 - `POST /api/simulation/interact`: Apply a tool (Water Drop, etc.) to GPS coordinates.
-- `GET /api/leaderboard`: Top 10 historical scores for the pitch presentation.
+- `GET /api/leaderboard`: Top 10 historical scores.
 
 ### 6.2. WebSocket Protocol (`/ws/simulation`)
 
 To optimize performance over hackathon Wi-Fi, the platform uses a **Sparse Matrix Update** protocol.
+
+```mermaid
+sequenceDiagram
+    participant FE as Frontend
+    participant BE as Backend
+    FE->>BE: Connect WebSocket
+    BE->>FE: FULL_SYNC (Grid + Stats)
+    loop Every 500ms
+        BE->>BE: Compute Tick (NumPy)
+        BE->>FE: TICK_UPDATE (Sparse Changes)
+    end
+    FE->>BE: INTERACT (Tool Event)
+```
 
 #### 6.2.1. Sparse Update Logic
 
@@ -124,9 +169,9 @@ Instead of sending a 10,000-cell array every 500ms, the backend only broadcasts 
 ### 7.2. Hackathon Milestones
 
 - **Hours 0-4**: Scaffolding (FastAPI <-> React WebSocket link working).
-- **Hours 4-12**: MVP Simulation (Fire spreads on a static grid in the browser).
+- **Hours 4-12**: MVP Simulation (Fire spreads on a static grid).
 - **Hours 12-24**: Interactivity (Sliders update $P_{burn}$ and Water Drops work).
-- **Hours 24-36**: Polishing (Glow effects, real map locations, stats dashboard).
+- **Hours 24-36**: Polishing (Glow effects, real map locations).
 - **Hours 36-48**: Pitch & Presentation preparation.
 
 ## 8. Technical Stack
