@@ -50,8 +50,6 @@ export class MockWebSocket {
     // Precompute downwind unit vector (direction fire spreads toward)
     this._updateWindVec();
 
-    this._seedFire();
-
     // Simulate async handshake — store handle so close() can cancel it
     this._connectTimer = setTimeout(() => {
       this.readyState = 1; // OPEN
@@ -72,6 +70,15 @@ export class MockWebSocket {
   send(raw) {
     try {
       const msg = JSON.parse(raw);
+      if (msg.action === 'start') {
+        const changes = this._seedFire();
+        this._emit({
+          type: 'TICK_UPDATE',
+          changes,
+          stats: this._calcStats(),
+        });
+        return;
+      }
       if (msg.action === 'pause')  { this._pause();  return; }
       if (msg.action === 'resume') { this._resume(); return; }
       this._handleInteraction(msg);
@@ -162,13 +169,17 @@ export class MockWebSocket {
   _seedFire() {
     const cx = Math.floor(GRID_SIZE / 2);
     const cy = Math.floor(GRID_SIZE / 2);
+    const changes = [];
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         const x = cx + dx, y = cy + dy;
-        if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE)
+        if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
           this._grid[this._i(x, y)] = 1;
+          changes.push({ x, y, s: 1 });
+        }
       }
     }
+    return changes;
   }
 
   _tick_() {
