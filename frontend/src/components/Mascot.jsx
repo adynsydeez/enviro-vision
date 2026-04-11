@@ -25,7 +25,13 @@ const Mascot = ({ mascotHook }) => {
         
         {/* Speech Bubble */}
         {showBubble && currentMessage && (
-          <div className="relative mb-4 max-w-[280px] md:max-w-xs pointer-events-auto mascot-bubble-animate">
+          <div 
+            className={`
+              relative mb-4 max-w-[280px] md:max-w-xs pointer-events-auto mascot-bubble-animate
+              ${isIntroActive ? 'cursor-pointer' : ''}
+            `}
+            onClick={isIntroActive ? nextIntro : undefined}
+          >
             <div className={`
               bg-gray-950/85 border border-gray-700/50 backdrop-blur-md 
               text-white p-4 shadow-2xl
@@ -41,7 +47,13 @@ const Mascot = ({ mascotHook }) => {
         )}
 
         {/* Mascot Image */}
-        <div className="w-24 h-24 md:w-32 md:h-32 pointer-events-auto mascot-float">
+        <div 
+          className={`
+            w-24 h-24 md:w-32 md:h-32 pointer-events-auto mascot-float
+            ${isIntroActive ? 'cursor-pointer' : ''}
+          `}
+          onClick={isIntroActive ? nextIntro : undefined}
+        >
           <img 
             src="/mascot-ingame.png" 
             alt="Mascot" 

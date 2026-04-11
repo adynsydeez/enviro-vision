@@ -254,38 +254,49 @@ export default function MapView({ scenario, onBack }) {
     useSimulation(scenario);
 
   const mascotHook = useMascot(scenario);
+  const { isIntroActive, triggerRandom } = mascotHook;
   const [userPaused, setUserPaused] = useState(false);
+  const gameOverTriggered = useRef(false);
 
   // Handle automatic pausing for Mascot intro
   useEffect(() => {
-    if (mascotHook.isIntroActive && !paused) {
+    if (isIntroActive && !paused) {
       togglePause();
-    } else if (!mascotHook.isIntroActive && paused && !userPaused) {
+    } else if (!isIntroActive && paused && !userPaused) {
       togglePause();
     }
-  }, [mascotHook.isIntroActive, paused, userPaused, togglePause]);
+  }, [isIntroActive, paused, userPaused, togglePause]);
+
+  // Reset game over trigger when simulation restarts
+  useEffect(() => {
+    if (stats.tick === 0) {
+      gameOverTriggered.current = false;
+    }
+  }, [stats.tick]);
 
   // Idle triggers
   useEffect(() => {
-    if (mascotHook.isIntroActive || paused) return;
+    if (isIntroActive || paused) return;
 
     const interval = setInterval(() => {
-      mascotHook.triggerRandom('idle');
+      triggerRandom('idle');
     }, 45000);
 
     return () => clearInterval(interval);
-  }, [mascotHook.isIntroActive, paused, mascotHook.triggerRandom]);
+  }, [isIntroActive, paused, triggerRandom]);
 
   // Victory/Defeat triggers
   useEffect(() => {
-    if (mascotHook.isIntroActive) return;
+    if (isIntroActive || gameOverTriggered.current) return;
 
     if (stats.score === 0) {
-      mascotHook.triggerRandom('defeat');
+      triggerRandom('defeat');
+      gameOverTriggered.current = true;
     } else if (stats.burning === 0 && stats.tick > 100) {
-      mascotHook.triggerRandom('victory');
+      triggerRandom('victory');
+      gameOverTriggered.current = true;
     }
-  }, [stats.score, stats.burning, stats.tick, mascotHook.isIntroActive, mascotHook.triggerRandom]);
+  }, [stats.score, stats.burning, stats.tick, isIntroActive, triggerRandom]);
 
   const handleTogglePause = () => {
     setUserPaused(!paused);
@@ -326,7 +337,7 @@ export default function MapView({ scenario, onBack }) {
     setWindDir(dir);
     setWindSpd(spd);
     setWind(dir, spd);
-    mascotHook.triggerRandom('wind');
+    triggerRandom('wind');
   };
 
   const handleToolSelect = (id) => {
@@ -346,7 +357,7 @@ export default function MapView({ scenario, onBack }) {
     setCooldownActive(true);
     clearTimeout(cooldownTimerRef.current);
     cooldownTimerRef.current = setTimeout(() => setCooldownActive(false), 3000);
-    mascotHook.triggerRandom('water');
+    triggerRandom('water');
   };
 
   useEffect(() => {

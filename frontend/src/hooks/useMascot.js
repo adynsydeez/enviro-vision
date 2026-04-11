@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 
 /**
  * Hook to manage the mascot's state, including intro sequence and dynamic messages.
@@ -85,7 +85,7 @@ export const useMascot = (scenario) => {
     };
   }, []);
 
-  return {
+  return useMemo(() => ({
     introIndex,
     isIntroActive,
     currentMessage,
@@ -93,5 +93,5 @@ export const useMascot = (scenario) => {
     nextIntro,
     say,
     triggerRandom
-  };
+  }), [introIndex, isIntroActive, currentMessage, showBubble, nextIntro, say, triggerRandom]);
 };
