@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Palan-Tir of Fire** — a wildfire simulation training platform for firefighters. Users practice suppression strategies (control lines, water drops, backburns) on realistic Australian terrain scenarios. See `PLAN.md` for the full technical specification.
+**FireCommander** — a wildfire simulation training platform for firefighters. Users practice suppression strategies (control lines, water drops, backburns) on realistic Australian terrain scenarios. See `PLAN.md` for the full technical specification.
 
 ## Commands
 

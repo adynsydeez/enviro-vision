@@ -1,4 +1,4 @@
-import { MapPin, ChevronRight, Wind, Flame } from 'lucide-react';
+import { MapPin, ChevronRight, Flame } from 'lucide-react';
 import mascot from './assets/mascot.png';
 import scenarios, { RISK_LEVELS } from './data/scenarios';
 
@@ -8,54 +8,46 @@ function ScenarioCard({ scenario, onSelect }) {
   return (
     <button
       onClick={() => onSelect(scenario)}
-      className="group text-left bg-gray-900 border border-gray-800 rounded-xl overflow-hidden flex flex-col hover:border-orange-500/70 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+      className="group text-left bg-gray-900 border border-gray-800 rounded-xl overflow-hidden flex flex-col h-full hover:border-orange-500/70 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500/50"
     >
       {/* Image */}
-      <div className="relative h-40 overflow-hidden">
+      <div className="relative overflow-hidden flex-1">
         <img
           src={scenario.image}
           alt={scenario.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/20 to-transparent" />
-        <span className={`absolute top-3 right-3 text-xs font-semibold px-2 py-0.5 rounded border ${risk.bg} ${risk.color}`}>
+        <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/30 to-transparent" />
+        <span className={`absolute top-2 right-2 text-xs font-semibold px-2 py-0.5 rounded border ${risk.bg} ${risk.color}`}>
           {risk.label}
         </span>
       </div>
 
       {/* Content */}
-      <div className="p-5 flex flex-col gap-3 flex-1">
-        {/* State + year */}
+      <div className="px-4 py-3 flex flex-col gap-1.5">
         <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1.5 text-xs font-medium text-gray-400">
-            <MapPin size={12} className="text-orange-400" />
+          <span className="flex items-center gap-1 text-xs text-gray-400">
+            <MapPin size={11} className="text-orange-400" />
             {scenario.state}
           </span>
           <span className="text-gray-700">·</span>
           <span className="text-xs text-gray-500">{scenario.year}</span>
         </div>
 
-        {/* Name */}
-        <h2 className="text-white font-bold text-lg leading-tight group-hover:text-orange-100 transition-colors">
-          {scenario.name}
-        </h2>
-
-        {/* Description */}
-        <p className="text-gray-400 text-sm leading-relaxed flex-1">
-          {scenario.description}
-        </p>
-
-        {/* Footer: area + launch */}
-        <div className="flex items-center justify-between pt-1 border-t border-gray-800">
-          <span className="flex items-center gap-1.5 text-xs text-gray-500">
-            <Flame size={12} className="text-orange-500" />
-            {scenario.areaHa} ha affected
-          </span>
-          <span className="flex items-center gap-1 text-xs font-semibold text-orange-400 group-hover:text-orange-300 transition-colors">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-white font-bold text-sm leading-tight group-hover:text-orange-100 transition-colors">
+            {scenario.name}
+          </h2>
+          <span className="flex items-center gap-0.5 text-xs font-semibold text-orange-400 group-hover:text-orange-300 transition-colors shrink-0">
             Launch
-            <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+            <ChevronRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
           </span>
         </div>
+
+        <span className="flex items-center gap-1 text-xs text-gray-600">
+          <Flame size={11} className="text-orange-600" />
+          {scenario.areaHa} ha
+        </span>
       </div>
     </button>
   );
@@ -63,37 +55,20 @@ function ScenarioCard({ scenario, onSelect }) {
 
 export default function LandingPage({ onSelect }) {
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="h-screen bg-gray-950 text-white flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="border-b border-gray-800/60 px-6 py-3">
-        <div className="max-w-7xl mx-auto flex items-center gap-3">
-          <img src={mascot} alt="Palan-Tir mascot" className="w-10 h-10 object-contain" />
-          <div>
-            <span className="font-bold text-white tracking-wide text-sm">PALAN-TIR</span>
-            <span className="text-gray-600 mx-2">·</span>
-            <span className="text-gray-400 text-sm">Wildfire Simulation Training</span>
-          </div>
+      <header className="border-b border-gray-800/60 px-6 py-2.5 shrink-0">
+        <div className="flex items-center gap-3">
+          <img src={mascot} alt="FireCommander mascot" className="w-8 h-8 object-contain" />
+          <span className="font-bold text-white tracking-wide text-sm">FireCommander</span>
+          <span className="text-gray-600">·</span>
+          <span className="text-gray-400 text-sm">Wildfire Simulation Training</span>
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="max-w-7xl mx-auto px-6 pt-14 pb-10">
-        <div className="flex items-center gap-2 text-orange-400 text-sm font-medium mb-4">
-          <Wind size={15} />
-          Training Environment
-        </div>
-        <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight tracking-tight max-w-2xl">
-          Select a wildfire<br />
-          <span className="text-orange-400">scenario</span> to simulate
-        </h1>
-        <p className="mt-4 text-gray-400 text-lg max-w-xl leading-relaxed">
-          Practice suppression strategies on realistic Australian terrain. Deploy control lines, water drops, and backburns across historical fire scenarios.
-        </p>
-      </section>
-
       {/* Scenario grid */}
-      <main className="max-w-7xl mx-auto px-6 pb-16">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <main className="flex-1 p-4 overflow-hidden">
+        <div className="grid grid-cols-3 grid-rows-2 gap-4 h-full">
           {scenarios.map((scenario) => (
             <ScenarioCard key={scenario.id} scenario={scenario} onSelect={onSelect} />
           ))}
