@@ -229,15 +229,35 @@ class GridFireSimulation:
         return changes
 
 def run_simulation_animated():
-    print("\n--- Multimodal Wildfire Simulator ---")
-    try:
-        lon = float(input("Longitude (e.g. 153.02): ") or "153.02")
-        lat = float(input("Latitude (e.g. -27.47): ") or "-27.47")
-        side_length = float(input("Side length in meters (e.g. 2000): ") or "2000")
-        ws = float(input("Wind speed m/s (e.g. 10): ") or "10")
-        wd = float(input("Wind dir deg (0=N, 90=E): ") or "45")
-    except:
-        lon, lat, side_length, ws, wd = 153.02, -27.47, 2000, 10, 45
+    presets = {
+        "1": {"name": "Toowoomba Escarpment (Steep Uphill)", "lon": 151.99, "lat": -27.58, "area": 4000, "ws": 12, "wd": 90},
+        "2": {"name": "Springbrook Plateau (High Elevation Heath)", "lon": 153.27, "lat": -28.14, "area": 4000, "ws": 10, "wd": 45},
+        "3": {"name": "Noosa Everglades (Wetland Firebreaks)", "lon": 153.02, "lat": -26.30, "area": 5000, "ws": 8, "wd": 180},
+        "4": {"name": "Bunya Mountains (Mosaic Grasslands)", "lon": 151.59, "lat": -26.90, "area": 3000, "ws": 10, "wd": 270},
+        "5": {"name": "Boondall Wetlands (Coastal Urban Interface)", "lon": 153.07, "lat": -27.34, "area": 4000, "ws": 15, "wd": 45}
+    }
+
+    print("\n=== Wildfire Simulation Presets ===")
+    for k, v in presets.items():
+        print(f"{k}. {v['name']}")
+    print("0. Custom Configuration")
+    
+    choice = input("\nSelect a scenario (0-5) [Default: 0]: ") or "0"
+    
+    if choice in presets:
+        p = presets[choice]
+        print(f"\nLoading Scenario: {p['name']}...")
+        lon, lat, side_length, ws, wd = p['lon'], p['lat'], p['area'], p['ws'], p['wd']
+    else:
+        print("\n--- Custom Configuration ---")
+        try:
+            lon = float(input("Longitude (e.g. 153.02): ") or "153.02")
+            lat = float(input("Latitude (e.g. -27.47): ") or "-27.47")
+            side_length = float(input("Side length in meters (e.g. 2000): ") or "2000")
+            ws = float(input("Wind speed m/s (e.g. 10): ") or "10")
+            wd = float(input("Wind dir deg (0=N, 90=E): ") or "45")
+        except:
+            lon, lat, side_length, ws, wd = 153.02, -27.47, 2000, 10, 45
 
     sim = GridFireSimulation(lon, lat, side_length, ws, wd)
     
