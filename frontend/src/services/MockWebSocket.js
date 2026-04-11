@@ -41,6 +41,9 @@ export class MockWebSocket {
     this._windDir   = WIND_DIR;
     this._windSpd   = WIND_SPD;
 
+    this._vegGrid   = new Uint8Array(GRID_SIZE * GRID_SIZE);
+    this._generateVegetation();
+
     // Precompute downwind unit vector (direction fire spreads toward)
     this._updateWindVec();
 
@@ -51,10 +54,11 @@ export class MockWebSocket {
       this.readyState = 1; // OPEN
       this.onopen?.({ type: 'open' });
       this._emit({
-        type:     'FULL_SYNC',
-        gridSize: GRID_SIZE,
-        grid:     this._snapshot(),
-        stats:    this._calcStats(),
+        type:           'FULL_SYNC',
+        gridSize:       GRID_SIZE,
+        grid:           this._snapshot(),
+        vegetationGrid: Array.from(this._vegGrid),
+        stats:          this._calcStats(),
       });
       this._interval = setInterval(() => this._tick_(), TICK_MS);
     }, 80);
@@ -108,6 +112,46 @@ export class MockWebSocket {
     const rad = ((this._windDir + 180) % 360) * Math.PI / 180;
     this._dwx = Math.sin(rad);  // +x = east
     this._dwy = -Math.cos(rad); // +y = south (grid row increases downward)
+  }
+
+  _generateVegetation() {
+    // Voronoi on a coarse grid produces large coherent regions instead of random noise.
+    // Each coarse cell (= 10 real cells = 100 m) takes the type of its nearest seed.
+    const COARSE     = 100;
+    const NUM_SEEDS  = 120;
+    const scale      = GRID_SIZE / COARSE; // 10 real cells per coarse cell
+
+    // Scatter seeds at random positions on the coarse grid
+    const seeds = [];
+    for (let i = 0; i < NUM_SEEDS; i++) {
+      seeds.push({
+        x:    Math.random() * COARSE,
+        y:    Math.random() * COARSE,
+        type: Math.floor(Math.random() * 15) + 1,
+      });
+    }
+
+    // Build coarse Voronoi (100×100 × 120 seeds = 1.2 M comparisons — fast)
+    const coarse = new Uint8Array(COARSE * COARSE);
+    for (let cy = 0; cy < COARSE; cy++) {
+      for (let cx = 0; cx < COARSE; cx++) {
+        let minD = Infinity, nearest = 1;
+        for (const s of seeds) {
+          const d = (cx - s.x) ** 2 + (cy - s.y) ** 2;
+          if (d < minD) { minD = d; nearest = s.type; }
+        }
+        coarse[cy * COARSE + cx] = nearest;
+      }
+    }
+
+    // Nearest-neighbour upsample to full grid
+    for (let y = 0; y < GRID_SIZE; y++) {
+      const cy = Math.min(Math.floor(y / scale), COARSE - 1);
+      for (let x = 0; x < GRID_SIZE; x++) {
+        const cx = Math.min(Math.floor(x / scale), COARSE - 1);
+        this._vegGrid[y * GRID_SIZE + x] = coarse[cy * COARSE + cx];
+      }
+    }
   }
 
   _i(x, y) { return y * GRID_SIZE + x; }
