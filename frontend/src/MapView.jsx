@@ -134,7 +134,7 @@ export default function MapView({ scenario, onBack }) {
   const [activeTool,    setActiveTool]    = useState(null);
   const [cooldownActive, setCooldownActive] = useState(false);
   const cooldownUntil    = useRef(0);
-  const cooldownEpoch    = useRef(0);
+  const [cooldownEpoch, setCooldownEpoch] = useState(0);
   const cooldownTimerRef = useRef(null);
   const activeToolRef    = useRef(null);
 
@@ -157,7 +157,7 @@ export default function MapView({ scenario, onBack }) {
 
   const handleWaterDrop = () => {
     cooldownUntil.current = Date.now() + 3000;
-    cooldownEpoch.current += 1;
+    setCooldownEpoch(e => e + 1);
     setCooldownActive(true);
     clearTimeout(cooldownTimerRef.current);
     cooldownTimerRef.current = setTimeout(() => setCooldownActive(false), 3000);
@@ -353,7 +353,7 @@ export default function MapView({ scenario, onBack }) {
       <ToolPalette
         activeTool={activeTool}
         cooldownActive={cooldownActive}
-        cooldownEpoch={cooldownEpoch.current}
+        cooldownEpoch={cooldownEpoch}
         onToolSelect={handleToolSelect}
       />
     </div>

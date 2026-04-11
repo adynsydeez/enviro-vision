@@ -53,7 +53,8 @@ export default function ToolPalette({ activeTool, cooldownActive, cooldownEpoch,
       `}</style>
 
       <div className="absolute right-4 top-1/2 -translate-y-1/2 z-[1000] flex flex-col items-center gap-3">
-        {TOOLS.map(({ id, label, Icon, locked }) => {
+        {TOOLS.map(({ id, label, Icon: _icon, locked }) => {
+          const Icon = _icon;
           const isActive = activeTool === id;
           const isCoolingDown = isActive && cooldownActive;
 
