@@ -7,14 +7,14 @@ const EMBER_COLORS = ['#fb923c', '#f97316', '#fbbf24', '#ef4444'];
 
 function Embers() {
   const embers = useMemo(() =>
-    Array.from({ length: 30 }, (_, i) => ({
+    Array.from({ length: 55 }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
-      size: Math.random() * 3 + 1.5,
-      riseDuration: Math.random() * 6 + 6,
+      size: Math.random() * 5 + 2,
+      riseDuration: Math.random() * 5 + 5,
       swayDuration: Math.random() * 2 + 2,
       delay: Math.random() * 10,
-      opacity: Math.random() * 0.35 + 0.12,
+      opacity: Math.random() * 0.5 + 0.35,
       color: EMBER_COLORS[Math.floor(Math.random() * EMBER_COLORS.length)],
     }))
   , []);
@@ -22,12 +22,12 @@ function Embers() {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
       {/* Glow base at bottom */}
-      <div className="absolute bottom-0 inset-x-0 h-40 bg-gradient-to-t from-orange-950/30 via-orange-950/10 to-transparent" />
+      <div className="absolute bottom-0 inset-x-0 h-56 bg-gradient-to-t from-orange-900/50 via-orange-950/20 to-transparent" />
 
       {embers.map((e) => (
         <div
           key={e.id}
-          className="absolute bottom-0 ember-rise"
+          className="absolute -bottom-4 ember-rise"
           style={{
             left: `${e.left}%`,
             animationDuration: `${e.riseDuration}s`,
@@ -48,7 +48,7 @@ function Embers() {
                 height: e.size,
                 background: e.color,
                 opacity: e.opacity,
-                boxShadow: `0 0 ${e.size * 3}px ${e.size}px ${e.color}55`,
+                boxShadow: `0 0 ${e.size * 4}px ${e.size * 1.5}px ${e.color}88`,
               }}
             />
           </div>
