@@ -12,8 +12,13 @@ export default function QuizPage({ onBack }) {
   const [isFinished, setIsFinished] = useState(false);
 
   useEffect(() => {
-    const s = [...QUIZ_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 10);
-    setShuffled(s);
+    // Fisher-Yates shuffle for better randomization
+    const s = [...QUIZ_QUESTIONS];
+    for (let i = s.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [s[i], s[j]] = [s[j], s[i]];
+    }
+    setShuffled(s.slice(0, 10));
   }, []);
 
   if (shuffled.length === 0) return null;
@@ -38,7 +43,12 @@ export default function QuizPage({ onBack }) {
   };
 
   const reset = () => {
-    setShuffled([...QUIZ_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 10));
+    const s = [...QUIZ_QUESTIONS];
+    for (let i = s.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [s[i], s[j]] = [s[j], s[i]];
+    }
+    setShuffled(s.slice(0, 10));
     setCurrentIndex(0);
     setScore(0);
     setSelected(null);
