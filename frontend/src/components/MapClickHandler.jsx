@@ -42,7 +42,11 @@ export default function MapClickHandler({
 
   // Crosshair cursor while a tool is armed
   useEffect(() => {
-    map.getContainer().style.cursor = activeTool ? 'crosshair' : '';
+    const container = map.getContainer();
+    container.style.cursor = activeTool ? 'crosshair' : '';
+    return () => {
+      container.style.cursor = '';
+    };
   }, [activeTool, map]);
 
   return null;
