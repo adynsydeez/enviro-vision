@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { MockWebSocket } from '../services/MockWebSocket';
 
-const DEFAULT_STATS = { burning: 0, burned: 0, burnedHa: 0, score: 100, tick: 0 };
+const DEFAULT_STATS = { burning: 0, burned: 0, burnedHa: 0, score: 100, tick: 0, windDir: 0, windSpd: 0 };
 
 /**
  * gridRef.current    — Map<"x,y", state>   hot path, no React

@@ -1,6 +1,6 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
-import { ArrowLeft, Flame, MapPin, Zap, Shield } from 'lucide-react';
+import { ArrowLeft, Flame, MapPin, Zap, Shield, Wind } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import { RISK_LEVELS } from './data/scenarios';
 import { getBounds } from './utils/geo';
@@ -16,19 +16,45 @@ function FlyToScenario({ center, zoom }) {
   return null;
 }
 
-function FireLayer({ gridRef, burnAgeRef, scenario }) {
-  const map = useMap();
+function FireLayer({ gridRef, burnAgeRef, scenario, windDir, windSpd }) {
+  const map      = useMap();
+  const layerRef = useRef(null);
+
   useEffect(() => {
     const bounds = getBounds(scenario.center, 5);
     const layer  = new FireCanvasLayer(gridRef, burnAgeRef, bounds, GRID_SIZE);
+    layerRef.current = layer;
     map.addLayer(layer);
-    return () => map.removeLayer(layer);
+    return () => {
+      map.removeLayer(layer);
+      layerRef.current = null;
+    };
   }, [map, gridRef, burnAgeRef, scenario]);
+
+  // Push wind updates to the layer without recreating it
+  useEffect(() => {
+    layerRef.current?.setWind(windDir, windSpd);
+  }, [windDir, windSpd]);
+
   return null;
 }
 
+// Compass arrow pointing in the downwind direction (where fire spreads)
+function WindArrow({ windDir }) {
+  const downwind = (windDir + 180) % 360;
+  return (
+    <svg
+      width="20" height="20" viewBox="0 0 20 20"
+      style={{ transform: `rotate(${downwind}deg)`, display: 'inline-block' }}
+    >
+      <line x1="10" y1="16" x2="10" y2="4" stroke="#fb923c" strokeWidth="2" strokeLinecap="round" />
+      <polyline points="6,8 10,4 14,8" fill="none" stroke="#fb923c" strokeWidth="2" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default function MapView({ scenario, onBack }) {
-  const risk = RISK_LEVELS[scenario.risk];
+  const risk   = RISK_LEVELS[scenario.risk];
   const bounds = useMemo(() => getBounds(scenario.center, 5), [scenario]);
   const { gridRef, burnAgeRef, stats, status } = useSimulation(scenario);
 
@@ -50,7 +76,13 @@ export default function MapView({ scenario, onBack }) {
           url="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}.png"
         />
         <FlyToScenario center={scenario.center} zoom={scenario.zoom} />
-        <FireLayer gridRef={gridRef} burnAgeRef={burnAgeRef} scenario={scenario} />
+        <FireLayer
+          gridRef={gridRef}
+          burnAgeRef={burnAgeRef}
+          scenario={scenario}
+          windDir={stats.windDir}
+          windSpd={stats.windSpd}
+        />
       </MapContainer>
 
       {/* Overlay panel */}
@@ -127,9 +159,28 @@ export default function MapView({ scenario, onBack }) {
               }`}>{stats.score}</p>
               <p className="text-gray-600 text-xs">/ 100</p>
             </div>
+
+            {/* Wind row — full width */}
+            <div className="col-span-2 pt-2 border-t border-gray-800 flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                <Wind size={11} className="text-orange-400" />
+                Wind
+              </span>
+              <span className="flex items-center gap-2 text-xs text-gray-300">
+                <WindArrow windDir={stats.windDir} />
+                <span className="font-medium">{stats.windSpd} km/h</span>
+                <span className="text-gray-600">{bearingLabel(stats.windDir)}</span>
+              </span>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+// Convert degrees to cardinal + intercardinal label
+function bearingLabel(deg) {
+  const dirs = ['N','NE','E','SE','S','SW','W','NW'];
+  return dirs[Math.round(deg / 45) % 8];
 }

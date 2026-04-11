@@ -18,6 +18,12 @@ const BURN_DURATION = 14;   // ticks a cell burns before becoming ash
 const SPREAD_PROB   = 0.16; // base ignition probability per neighbour per tick
 const DIRS          = [[-1,0],[1,0],[0,-1],[0,1]];
 
+// Wind: direction the wind is blowing FROM (meteorological convention), degrees
+// Downwind vector (direction fire spreads toward) = windDir + 180
+const WIND_DIR = 45;   // NE wind → fire spreads SW
+const WIND_SPD = 30;   // km/h
+const WIND_BIAS = 2.5; // max multiplier at full alignment + full speed
+
 export class MockWebSocket {
   constructor(scenario) {
     this.onopen    = null;
@@ -31,6 +37,11 @@ export class MockWebSocket {
     this._burnAge   = new Uint8Array(GRID_SIZE * GRID_SIZE);
     this._tick      = 0;
     this._interval  = null;
+    this._windDir   = WIND_DIR;
+    this._windSpd   = WIND_SPD;
+
+    // Precompute downwind unit vector (direction fire spreads toward)
+    this._updateWindVec();
 
     this._seedFire();
 
@@ -63,6 +74,13 @@ export class MockWebSocket {
   }
 
   // ── Internal ────────────────────────────────────────────────────────────────
+
+  _updateWindVec() {
+    // Downwind = wind direction + 180° (direction the fire is pushed toward)
+    const rad = ((this._windDir + 180) % 360) * Math.PI / 180;
+    this._dwx = Math.sin(rad);  // +x = east
+    this._dwy = -Math.cos(rad); // +y = south (grid row increases downward)
+  }
 
   _i(x, y) { return y * GRID_SIZE + x; }
 
@@ -105,11 +123,16 @@ export class MockWebSocket {
           continue;
         }
 
+        const windT = Math.min(this._windSpd / 60, 1); // 0–1 at 60 km/h
         for (const [dx, dy] of DIRS) {
           const nx = x + dx, ny = y + dy;
           if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE) continue;
           const ni = this._i(nx, ny);
-          if (this._grid[ni] === 0 && Math.random() < SPREAD_PROB) {
+          if (this._grid[ni] !== 0) continue;
+          // dot product of neighbor direction with downwind vector (-1..1)
+          const dot = dx * this._dwx + dy * this._dwy;
+          const windBias = 1 + dot * windT * WIND_BIAS;
+          if (Math.random() < SPREAD_PROB * windBias) {
             next[ni] = 1;
             changes.push({ x: nx, y: ny, s: 1 });
           }
@@ -160,7 +183,8 @@ export class MockWebSocket {
     const total    = GRID_SIZE * GRID_SIZE;
     const burnedHa = +((burned / total) * 100).toFixed(1); // % of area as ha proxy
     const score    = Math.max(0, 100 - Math.floor((burned / total) * 150));
-    return { burning, burned, burnedHa, score, tick: this._tick };
+    return { burning, burned, burnedHa, score, tick: this._tick,
+             windDir: this._windDir, windSpd: this._windSpd };
   }
 
   _emit(data) {
