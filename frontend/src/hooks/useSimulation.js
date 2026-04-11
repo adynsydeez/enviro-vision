@@ -94,5 +94,9 @@ export function useSimulation(scenario) {
     setPaused(next);
   }, []);
 
-  return { gridRef, burnAgeRef, vegGridRef, stats, status, paused, interact, setWind, togglePause };
+  const start = useCallback(() => {
+    wsRef.current?.send(JSON.stringify({ action: 'start' }));
+  }, []);
+
+  return { gridRef, burnAgeRef, vegGridRef, stats, status, paused, interact, setWind, togglePause, start };
 }

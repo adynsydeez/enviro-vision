@@ -250,27 +250,34 @@ function bearingLabel(deg) {
 export default function MapView({ scenario, onBack }) {
   const risk   = RISK_LEVELS[scenario.risk];
   const bounds = useMemo(() => getBounds(scenario.center, 5), [scenario]);
-  const { gridRef, burnAgeRef, vegGridRef, stats, status, paused, interact, setWind, togglePause } =
+  const { gridRef, burnAgeRef, vegGridRef, stats, status, paused, interact, setWind, togglePause, start } =
     useSimulation(scenario);
 
   const mascotHook = useMascot(scenario);
   const { isIntroActive, triggerRandom } = mascotHook;
   const [userPaused, setUserPaused] = useState(false);
   const gameOverTriggered = useRef(false);
+  const hasStartedRef = useRef(false);
 
-  // Handle automatic pausing for Mascot intro
+  // Handle automatic pausing for Mascot intro and trigger ignition
   useEffect(() => {
+    if (!isIntroActive && !hasStartedRef.current) {
+      start();
+      hasStartedRef.current = true;
+    }
+
     if (isIntroActive && !paused) {
       togglePause();
     } else if (!isIntroActive && paused && !userPaused) {
       togglePause();
     }
-  }, [isIntroActive, paused, userPaused, togglePause]);
+  }, [isIntroActive, paused, userPaused, togglePause, start]);
 
-  // Reset game over trigger when simulation restarts
+  // Reset game over trigger and started flag when simulation restarts
   useEffect(() => {
     if (stats.tick === 0) {
       gameOverTriggered.current = false;
+      hasStartedRef.current = false;
     }
   }, [stats.tick]);
 
