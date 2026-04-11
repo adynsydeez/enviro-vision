@@ -8,42 +8,54 @@ function ScenarioCard({ scenario, onSelect }) {
   return (
     <button
       onClick={() => onSelect(scenario)}
-      className="group text-left bg-gray-900 border border-gray-800 rounded-xl p-5 flex flex-col gap-3 hover:border-orange-500/70 hover:bg-gray-900/80 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+      className="group text-left bg-gray-900 border border-gray-800 rounded-xl overflow-hidden flex flex-col hover:border-orange-500/70 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500/50"
     >
-      {/* Top row: state + risk + year */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <span className="flex items-center gap-1.5 text-xs font-medium text-gray-400">
-          <MapPin size={12} className="text-orange-400" />
-          {scenario.state}
+      {/* Image */}
+      <div className="relative h-40 overflow-hidden">
+        <img
+          src={scenario.image}
+          alt={scenario.name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/20 to-transparent" />
+        <span className={`absolute top-3 right-3 text-xs font-semibold px-2 py-0.5 rounded border ${risk.bg} ${risk.color}`}>
+          {risk.label}
         </span>
-        <div className="flex items-center gap-2">
-          <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${risk.bg} ${risk.color}`}>
-            {risk.label}
-          </span>
-          <span className="text-xs text-gray-500">{scenario.year}</span>
-        </div>
       </div>
 
-      {/* Name */}
-      <h2 className="text-white font-bold text-lg leading-tight group-hover:text-orange-100 transition-colors">
-        {scenario.name}
-      </h2>
+      {/* Content */}
+      <div className="p-5 flex flex-col gap-3 flex-1">
+        {/* State + year */}
+        <div className="flex items-center gap-2">
+          <span className="flex items-center gap-1.5 text-xs font-medium text-gray-400">
+            <MapPin size={12} className="text-orange-400" />
+            {scenario.state}
+          </span>
+          <span className="text-gray-700">·</span>
+          <span className="text-xs text-gray-500">{scenario.year}</span>
+        </div>
 
-      {/* Description */}
-      <p className="text-gray-400 text-sm leading-relaxed flex-1">
-        {scenario.description}
-      </p>
+        {/* Name */}
+        <h2 className="text-white font-bold text-lg leading-tight group-hover:text-orange-100 transition-colors">
+          {scenario.name}
+        </h2>
 
-      {/* Footer: area + launch */}
-      <div className="flex items-center justify-between pt-1 border-t border-gray-800">
-        <span className="flex items-center gap-1.5 text-xs text-gray-500">
-          <Flame size={12} className="text-orange-500" />
-          {scenario.areaHa} ha affected
-        </span>
-        <span className="flex items-center gap-1 text-xs font-semibold text-orange-400 group-hover:text-orange-300 transition-colors">
-          Launch
-          <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
-        </span>
+        {/* Description */}
+        <p className="text-gray-400 text-sm leading-relaxed flex-1">
+          {scenario.description}
+        </p>
+
+        {/* Footer: area + launch */}
+        <div className="flex items-center justify-between pt-1 border-t border-gray-800">
+          <span className="flex items-center gap-1.5 text-xs text-gray-500">
+            <Flame size={12} className="text-orange-500" />
+            {scenario.areaHa} ha affected
+          </span>
+          <span className="flex items-center gap-1 text-xs font-semibold text-orange-400 group-hover:text-orange-300 transition-colors">
+            Launch
+            <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+          </span>
+        </div>
       </div>
     </button>
   );

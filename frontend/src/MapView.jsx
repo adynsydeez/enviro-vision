@@ -4,6 +4,17 @@ import { ArrowLeft, Flame, MapPin } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import { RISK_LEVELS } from './data/scenarios';
 
+// Returns [[south, west], [north, east]] for a square of side 2*radiusKm
+function getBounds(center, radiusKm = 5) {
+  const [lat, lng] = center;
+  const latDelta = radiusKm / 111.32;
+  const lngDelta = radiusKm / (111.32 * Math.cos((lat * Math.PI) / 180));
+  return [
+    [lat - latDelta, lng - lngDelta],
+    [lat + latDelta, lng + lngDelta],
+  ];
+}
+
 function FlyToScenario({ center, zoom }) {
   const map = useMap();
   useEffect(() => {
@@ -24,6 +35,9 @@ export default function MapView({ scenario, onBack }) {
         scrollWheelZoom
         style={{ height: '100%', width: '100%' }}
         zoomControl={false}
+        maxBounds={getBounds(scenario.center, 5)}
+        maxBoundsViscosity={1.0}
+        minZoom={13}
       >
         <TileLayer
           attribution="Esri, Maxar, Earthstar Geographics"
