@@ -4,6 +4,8 @@ import { useMapEvents } from 'react-leaflet';
 import { getBounds, latlngToCell } from '../utils/geo';
 import { GRID_SIZE } from '../services/MockWebSocket';
 
+const WATER_RADIUS = 3; // must match MockWebSocket constant
+
 export default function MapClickHandler({
   scenario,
   activeTool,
@@ -20,13 +22,15 @@ export default function MapClickHandler({
       const bounds = getBounds(scenario.center, 5);
       const { x, y } = latlngToCell(e.latlng, bounds, GRID_SIZE);
 
-      // Apply 3×3 water drop — only convert burning (state 1) cells
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
+      // Optimistic 5×5 circular water drop — mirrors MockWebSocket._handleInteraction
+      for (let dy = -WATER_RADIUS; dy <= WATER_RADIUS; dy++) {
+        for (let dx = -WATER_RADIUS; dx <= WATER_RADIUS; dx++) {
+          if (dx * dx + dy * dy > WATER_RADIUS * WATER_RADIUS) continue;
           const cx = Math.max(0, Math.min(GRID_SIZE - 1, x + dx));
           const cy = Math.max(0, Math.min(GRID_SIZE - 1, y + dy));
           const key = `${cx},${cy}`;
-          if (gridRef.current.get(key) === 1) {
+          const cur = gridRef.current.get(key) ?? 0;
+          if (cur === 0 || cur === 1) {
             gridRef.current.set(key, 4);
           }
         }

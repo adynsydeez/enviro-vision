@@ -8,30 +8,30 @@ const TOOLS = [
   { id: 'evac',    label: 'Evac',     Icon: AlertTriangle,  locked: true  },
 ];
 
-// SVG circle with r=24 in a 56×56 viewBox → circumference ≈ 150.8
-const CIRCUMFERENCE = 2 * Math.PI * 24;
+// SVG is 77×77 (72px button + 2.5px bleed on each side) so r=36 sits just inside the border
+const CIRCUMFERENCE = 2 * Math.PI * 36;
 
 function CooldownRing({ active }) {
   if (!active) return null;
   return (
     <svg
-      width="56"
-      height="56"
-      viewBox="0 0 56 56"
+      width="77"
+      height="77"
+      viewBox="0 0 77 77"
       style={{
         position: 'absolute',
-        top: 0,
-        left: 0,
+        top: -4.5,
+        left: -4.5,
         transform: 'rotate(-90deg)',
         pointerEvents: 'none',
       }}
     >
       <circle
-        cx="28"
-        cy="28"
-        r="24"
+        cx="38.5"
+        cy="38.5"
+        r="36"
         fill="none"
-        stroke="#60a5fa"
+        stroke="#22d3ee"
         strokeWidth="3"
         strokeDasharray={CIRCUMFERENCE}
         strokeDashoffset="0"
@@ -70,12 +70,12 @@ export default function ToolPalette({ activeTool, cooldownActive, cooldownEpoch,
               <div
                 style={{
                   position: 'relative',
-                  width:  isActive ? 56 : 44,
-                  height: isActive ? 56 : 44,
+                  width:  isActive ? 72 : 56,
+                  height: isActive ? 72 : 56,
                   borderRadius: '50%',
                   background: isActive
-                    ? 'rgba(30,64,175,0.9)'
-                    : 'rgba(15,23,42,0.8)',
+                    ? 'rgba(30,64,175,1)'
+                    : 'rgba(15,23,42,0.95)',
                   border: isActive
                     ? '2.5px solid #93c5fd'
                     : '1.5px solid #4b5563',
@@ -90,7 +90,7 @@ export default function ToolPalette({ activeTool, cooldownActive, cooldownEpoch,
                 }}
               >
                 <Icon
-                  size={isActive ? 22 : 18}
+                  size={isActive ? 28 : 22}
                   color={isActive ? '#bfdbfe' : '#9ca3af'}
                 />
                 <CooldownRing key={cooldownEpoch} active={isCoolingDown} />

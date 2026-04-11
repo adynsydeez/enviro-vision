@@ -248,6 +248,14 @@ export default function MapView({ scenario, onBack }) {
 
   const selectLayer = (id) => {
     setActiveLayers(new Set([id]));
+    // Disarm any active tool when leaving the fire layer
+    if (id !== 'fire') {
+      activeToolRef.current = null;
+      setActiveTool(null);
+      setCooldownActive(false);
+      cooldownUntil.current = 0;
+      clearTimeout(cooldownTimerRef.current);
+    }
   };
 
   const handleWindChange = (dir, spd) => {
@@ -300,6 +308,7 @@ export default function MapView({ scenario, onBack }) {
         center={scenario.center}
         zoom={12}
         scrollWheelZoom
+        attributionControl={false}
         style={{ height: '100%', width: '100%' }}
         zoomControl={false}
         maxBounds={bounds}
@@ -493,12 +502,14 @@ export default function MapView({ scenario, onBack }) {
 
       </div>
 
-      <ToolPalette
-        activeTool={activeTool}
-        cooldownActive={cooldownActive}
-        cooldownEpoch={cooldownEpoch}
-        onToolSelect={handleToolSelect}
-      />
+      {isFireActive && (
+        <ToolPalette
+          activeTool={activeTool}
+          cooldownActive={cooldownActive}
+          cooldownEpoch={cooldownEpoch}
+          onToolSelect={handleToolSelect}
+        />
+      )}
     </div>
   );
 }

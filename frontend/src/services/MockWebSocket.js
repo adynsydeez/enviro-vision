@@ -13,10 +13,12 @@
 
 export const GRID_SIZE = 1000; // 1000×1000 cells over the 10×10km area → 10m per cell
 
-const TICK_MS       = 500;
-const BURN_DURATION = 14;   // ticks a cell burns before becoming ash
-const SPREAD_PROB   = 0.16; // base ignition probability per neighbour per tick
-const DIRS          = [[-1,0],[1,0],[0,-1],[0,1]];
+const TICK_MS        = 500;
+const BURN_DURATION  = 14;  // ticks a cell burns before becoming ash
+const WATER_DURATION = 20;  // ticks water persists before evaporating (~10 s)
+const WATER_RADIUS   = 3;   // 7×7 circle drop (cells with dx²+dy² ≤ 9)
+const SPREAD_PROB    = 0.16; // base ignition probability per neighbour per tick
+const DIRS           = [[-1,0],[1,0],[0,-1],[0,1]];
 
 // Wind: direction the wind is blowing FROM (meteorological convention), degrees
 // Downwind vector (direction fire spreads toward) = windDir + 180
@@ -42,6 +44,7 @@ export class MockWebSocket {
     this._windSpd   = WIND_SPD;
 
     this._vegGrid   = new Uint8Array(GRID_SIZE * GRID_SIZE);
+    this._waterAge  = new Uint8Array(GRID_SIZE * GRID_SIZE);
     this._generateVegetation();
 
     // Precompute downwind unit vector (direction fire spreads toward)
@@ -186,27 +189,37 @@ export class MockWebSocket {
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
         const i = this._i(x, y);
-        if (this._grid[i] !== 1) continue;
+        const state = this._grid[i];
 
-        nextAge[i]++;
-        if (nextAge[i] >= BURN_DURATION) {
-          next[i] = 2;
-          changes.push({ x, y, s: 2 });
-          continue;
-        }
+        if (state === 1) {
+          nextAge[i]++;
+          if (nextAge[i] >= BURN_DURATION) {
+            next[i] = 2;
+            changes.push({ x, y, s: 2 });
+            continue;
+          }
 
-        const windT = Math.min(this._windSpd / 60, 1); // 0–1 at 60 km/h
-        for (const [dx, dy] of DIRS) {
-          const nx = x + dx, ny = y + dy;
-          if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE) continue;
-          const ni = this._i(nx, ny);
-          if (this._grid[ni] !== 0) continue;
-          // dot product of neighbor direction with downwind vector (-1..1)
-          const dot = dx * this._dwx + dy * this._dwy;
-          const windBias = 1 + dot * windT * WIND_BIAS;
-          if (Math.random() < SPREAD_PROB * windBias) {
-            next[ni] = 1;
-            changes.push({ x: nx, y: ny, s: 1 });
+          const windT = Math.min(this._windSpd / 60, 1); // 0–1 at 60 km/h
+          for (const [dx, dy] of DIRS) {
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE) continue;
+            const ni = this._i(nx, ny);
+            if (this._grid[ni] !== 0) continue;
+            // dot product of neighbor direction with downwind vector (-1..1)
+            const dot = dx * this._dwx + dy * this._dwy;
+            const windBias = 1 + dot * windT * WIND_BIAS;
+            if (Math.random() < SPREAD_PROB * windBias) {
+              next[ni] = 1;
+              changes.push({ x: nx, y: ny, s: 1 });
+            }
+          }
+        } else if (state === 4) {
+          // Water evaporation — revert to unburned (s:0) so cells can re-ignite
+          this._waterAge[i]++;
+          if (this._waterAge[i] >= WATER_DURATION) {
+            next[i] = 0;
+            this._waterAge[i] = 0;
+            changes.push({ x, y, s: 0 });
           }
         }
       }
@@ -220,13 +233,36 @@ export class MockWebSocket {
   _handleInteraction({ tool, x, y }) {
     const gx = Math.round(x), gy = Math.round(y);
     if (gx < 0 || gx >= GRID_SIZE || gy < 0 || gy >= GRID_SIZE) return;
+
+    if (tool === 'water') {
+      // Apply 5×5 circular water drop (all cells within WATER_RADIUS distance)
+      const changes = [];
+      for (let dy = -WATER_RADIUS; dy <= WATER_RADIUS; dy++) {
+        for (let dx = -WATER_RADIUS; dx <= WATER_RADIUS; dx++) {
+          if (dx * dx + dy * dy > WATER_RADIUS * WATER_RADIUS) continue;
+          const cx = gx + dx, cy = gy + dy;
+          if (cx < 0 || cx >= GRID_SIZE || cy < 0 || cy >= GRID_SIZE) continue;
+          const i = this._i(cx, cy);
+          const cur = this._grid[i];
+          if (cur === 0 || cur === 1) {
+            this._grid[i] = 4;
+            this._waterAge[i] = 0; // reset evaporation timer
+            changes.push({ x: cx, y: cy, s: 4 });
+          }
+        }
+      }
+      if (changes.length) {
+        this._emit({ type: 'TICK_UPDATE', changes, stats: this._calcStats() });
+      }
+      return;
+    }
+
     const i = this._i(gx, gy);
     const cur = this._grid[i];
     let next = cur;
 
-    if (tool === 'water'        && (cur === 1 || cur === 0)) next = 4;
-    if (tool === 'control_line' && cur === 0)                next = 3;
-    if (tool === 'backburn'     && cur === 0)                next = 1;
+    if (tool === 'control_line' && cur === 0) next = 3;
+    if (tool === 'backburn'     && cur === 0) next = 1;
 
     if (next === cur) return;
     this._grid[i] = next;
