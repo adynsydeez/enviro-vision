@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { MapPin, ChevronRight, Flame } from 'lucide-react';
+import ScenarioMapView from './ScenarioMapView';
 import mascot from './assets/mascot.png';
 import scenarios, { RISK_LEVELS } from './data/scenarios';
 
@@ -110,27 +111,57 @@ function ScenarioCard({ scenario, onSelect }) {
 }
 
 export default function LandingPage({ onSelect }) {
+  const [view, setView] = useState('grid');
+
   return (
     <div className="h-screen bg-gray-950 text-white flex flex-col overflow-hidden relative">
       <Embers />
 
       {/* Header */}
       <header className="relative z-10 border-b border-gray-800/60 px-6 py-2.5 shrink-0">
-        <div className="flex items-center gap-3">
-          <img src={mascot} alt="FireCommander mascot" className="w-8 h-8 object-contain" />
-          <span className="font-bold text-white tracking-wide text-sm">FireCommander</span>
-          <span className="text-gray-600">·</span>
-          <span className="text-gray-400 text-sm">Play with fire. Safely.</span>
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-3">
+            <img src={mascot} alt="FireCommander mascot" className="w-8 h-8 object-contain" />
+            <span className="font-bold text-white tracking-wide text-sm">FireCommander</span>
+            <span className="text-gray-600">·</span>
+            <span className="text-gray-400 text-sm">Play with fire. Safely.</span>
+          </div>
+          <div className="flex items-center bg-gray-950 rounded-lg p-0.5 gap-0.5">
+            <button
+              onClick={() => setView('grid')}
+              className={`text-xs font-semibold px-3 py-1 rounded-md transition-colors ${
+                view === 'grid'
+                  ? 'bg-orange-500 text-white'
+                  : 'text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              Grid
+            </button>
+            <button
+              onClick={() => setView('map')}
+              className={`text-xs font-semibold px-3 py-1 rounded-md transition-colors ${
+                view === 'map'
+                  ? 'bg-orange-500 text-white'
+                  : 'text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              Map
+            </button>
+          </div>
         </div>
       </header>
 
       {/* Scenario grid */}
-      <main className="flex-1 p-4 overflow-hidden relative z-10">
-        <div className="grid grid-cols-3 grid-rows-2 gap-4 h-full">
-          {scenarios.map((scenario) => (
-            <ScenarioCard key={scenario.id} scenario={scenario} onSelect={onSelect} />
-          ))}
-        </div>
+      <main className="flex-1 overflow-hidden relative z-10">
+        {view === 'grid' ? (
+          <div className="p-4 grid grid-cols-3 grid-rows-2 gap-4 h-full">
+            {scenarios.map((scenario) => (
+              <ScenarioCard key={scenario.id} scenario={scenario} onSelect={onSelect} />
+            ))}
+          </div>
+        ) : (
+          <ScenarioMapView scenarios={scenarios} onSelect={onSelect} />
+        )}
       </main>
     </div>
   );
