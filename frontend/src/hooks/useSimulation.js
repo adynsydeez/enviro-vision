@@ -18,18 +18,11 @@ export function useSimulation(scenario) {
   const pausedRef  = useRef(false);
 
   const [stats,  setStats]  = useState(DEFAULT_STATS);
-  const [status, setStatus] = useState('idle');
+  const [status, setStatus] = useState(scenario ? 'connecting' : 'idle');
   const [paused, setPaused] = useState(false);
 
   useEffect(() => {
     if (!scenario) return;
-
-    gridRef.current.clear();
-    burnAgeRef.current.clear();
-    setStats(DEFAULT_STATS);
-    setStatus('connecting');
-    setPaused(false);
-    pausedRef.current = false;
 
     const ws = new MockWebSocket(scenario);
     wsRef.current = ws;

@@ -6,19 +6,19 @@ import scenarios, { RISK_LEVELS } from './data/scenarios';
 
 const EMBER_COLORS = ['#fb923c', '#f97316', '#fbbf24', '#ef4444'];
 
+const INITIAL_EMBERS = Array.from({ length: 55 }, (_, i) => ({
+  id: i,
+  left: Math.random() * 100,
+  size: Math.random() * 5 + 2,
+  riseDuration: Math.random() * 5 + 5,
+  swayDuration: Math.random() * 2 + 2,
+  delay: Math.random() * 10,
+  opacity: Math.random() * 0.5 + 0.35,
+  color: EMBER_COLORS[Math.floor(Math.random() * EMBER_COLORS.length)],
+}));
+
 function Embers() {
-  const embers = useMemo(() =>
-    Array.from({ length: 55 }, (_, i) => ({
-      id: i,
-      left: Math.random() * 100,
-      size: Math.random() * 5 + 2,
-      riseDuration: Math.random() * 5 + 5,
-      swayDuration: Math.random() * 2 + 2,
-      delay: Math.random() * 10,
-      opacity: Math.random() * 0.5 + 0.35,
-      color: EMBER_COLORS[Math.floor(Math.random() * EMBER_COLORS.length)],
-    }))
-  , []);
+  const embers = useMemo(() => INITIAL_EMBERS, []);
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">

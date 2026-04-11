@@ -6,7 +6,7 @@ export default function App() {
   const [scenario, setScenario] = useState(null);
 
   if (scenario) {
-    return <MapView scenario={scenario} onBack={() => setScenario(null)} />;
+    return <MapView key={scenario.id} scenario={scenario} onBack={() => setScenario(null)} />;
   }
 
   return <LandingPage onSelect={setScenario} />;

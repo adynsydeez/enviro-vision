@@ -61,7 +61,7 @@ export default L.Layer.extend({
     this._frame = requestAnimationFrame((t) => this._loop(t));
   },
 
-  draw(dt) {
+  draw() {
     // To be implemented by subclasses
   }
 });
