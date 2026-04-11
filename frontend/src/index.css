@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+@keyframes ember-rise {
+  0%   { transform: translateY(0) scale(1); opacity: 0; }
+  6%   { opacity: 1; }
+  88%  { opacity: 0.85; }
+  100% { transform: translateY(-62vh) scale(0.15); opacity: 0; }
+}
+
+@keyframes ember-sway {
+  from { transform: translateX(-18px); }
+  to   { transform: translateX(18px); }
+}
+
+.ember-rise { animation: ember-rise linear infinite; }
+.ember-sway { animation: ember-sway ease-in-out infinite alternate; }
+
 :root {
   --text: #6b6375;
   --text-h: #08060d;
