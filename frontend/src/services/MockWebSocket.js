@@ -115,15 +115,41 @@ export class MockWebSocket {
   }
 
   _generateVegetation() {
-    const CHUNK = 50;
-    for (let y = 0; y < GRID_SIZE; y += CHUNK) {
-      for (let x = 0; x < GRID_SIZE; x += CHUNK) {
-        const type = Math.floor(Math.random() * 15) + 1; // 1-15 matching mapping
-        for (let cy = 0; cy < CHUNK && y+cy < GRID_SIZE; cy++) {
-          for (let cx = 0; cx < CHUNK && x+cx < GRID_SIZE; cx++) {
-            this._vegGrid[(y+cy) * GRID_SIZE + (x+cx)] = type;
-          }
+    // Voronoi on a coarse grid produces large coherent regions instead of random noise.
+    // Each coarse cell (= 10 real cells = 100 m) takes the type of its nearest seed.
+    const COARSE     = 100;
+    const NUM_SEEDS  = 120;
+    const scale      = GRID_SIZE / COARSE; // 10 real cells per coarse cell
+
+    // Scatter seeds at random positions on the coarse grid
+    const seeds = [];
+    for (let i = 0; i < NUM_SEEDS; i++) {
+      seeds.push({
+        x:    Math.random() * COARSE,
+        y:    Math.random() * COARSE,
+        type: Math.floor(Math.random() * 15) + 1,
+      });
+    }
+
+    // Build coarse Voronoi (100×100 × 120 seeds = 1.2 M comparisons — fast)
+    const coarse = new Uint8Array(COARSE * COARSE);
+    for (let cy = 0; cy < COARSE; cy++) {
+      for (let cx = 0; cx < COARSE; cx++) {
+        let minD = Infinity, nearest = 1;
+        for (const s of seeds) {
+          const d = (cx - s.x) ** 2 + (cy - s.y) ** 2;
+          if (d < minD) { minD = d; nearest = s.type; }
         }
+        coarse[cy * COARSE + cx] = nearest;
+      }
+    }
+
+    // Nearest-neighbour upsample to full grid
+    for (let y = 0; y < GRID_SIZE; y++) {
+      const cy = Math.min(Math.floor(y / scale), COARSE - 1);
+      for (let x = 0; x < GRID_SIZE; x++) {
+        const cx = Math.min(Math.floor(x / scale), COARSE - 1);
+        this._vegGrid[y * GRID_SIZE + x] = coarse[cy * COARSE + cx];
       }
     }
   }
