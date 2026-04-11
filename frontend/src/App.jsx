@@ -1,52 +1,13 @@
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import { useEffect, useRef } from "react";
+import { useState } from 'react';
+import LandingPage from './LandingPage';
+import MapView from './MapView';
 
-function App() {
-  const zoomRef = useRef(20);
+export default function App() {
+  const [scenario, setScenario] = useState(null);
 
-  useEffect(() => {
-    console.log("konnichiwassup");
+  if (scenario) {
+    return <MapView scenario={scenario} onBack={() => setScenario(null)} />;
+  }
 
-    const yo = document.getElementById("container");
-    console.log(yo);
-  }, []);
-
-  const MapLogger = () => {
-    const map = useMap();
-
-    useEffect(() => {
-      console.log(map.getCenter());
-    }, [map]);
-
-    return null;
-  };
-
-  return (
-    <>
-      <div style={{ height: "100vh", width: "100%" }}>
-        <MapContainer
-          id="container"
-          center={[-27, 153]}
-          zoom={zoomRef.current}
-          scrollWheelZoom={true}
-          style={{ height: "100%", width: "100%" }}
-        >
-          <MapLogger />
-          <TileLayer
-            attribution="&copy; OpenStreetMap contributors"
-            url="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}.png"
-          />
-
-          <Marker position={[-27, 153]}>
-            <Popup>
-              A pretty CSS3 popup. <br /> Easily customizable.
-            </Popup>
-          </Marker>
-        </MapContainer>
-      </div>
-    </>
-  );
+  return <LandingPage onSelect={setScenario} />;
 }
-
-export default App;
