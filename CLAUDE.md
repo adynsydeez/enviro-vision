@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Target Audience:** Kids, teens, and young adults — not professional firefighters. The goal is environmental literacy and basic tactical thinking around wildfire behaviour. UI should be approachable, engaging, and game-like while remaining grounded in realistic fire science.
 
-Users select an Australian wildfire scenario (Blue Mountains, D'Aguilar, Grampians, Kangaroo Island, Lamington, Dandenong Ranges), then practice suppression strategies — control lines, water drops, backburns — on a real satellite map locked to a 10×10km area around the location.
+Users select a Queensland wildfire scenario, then practice suppression strategies — control lines, water drops, backburns — on a real satellite map locked to a 10×10km area around the location.
 
 ## Commands
 
@@ -31,32 +31,100 @@ No test framework is configured yet.
 ## Architecture
 
 ```
-frontend/src/         React + Vite (JavaScript/JSX, no TypeScript)
-  LandingPage.jsx     Scenario selection grid with ember animation
-  MapView.jsx         Full-screen Leaflet map, locked to 10×10km bounds
-  data/scenarios.js   6 scenarios with coords, images, risk levels
-api.py                FastAPI backend (currently a stub)
+frontend/src/
+  App.jsx                         Route between LandingPage and MapView
+  LandingPage.jsx                 Scenario selection with Grid/Map toggle, ember animation
+  MapView.jsx                     Full-screen Leaflet map, satellite, canvas layers
+  ScenarioMapView.jsx             QLD overview map with all 6 scenario pins + popup cards
+  hooks/useSimulation.js          WebSocket (or MockWebSocket) state management
+  services/MockWebSocket.js       Client-side Alexandridis CA simulation (production-ready)
+  layers/BaseCanvasLayer.js       L.Layer subclass with rAF render loop
+  layers/FireCanvasLayer.js       Fire cells + ember particle system
+  layers/VegetationCanvasLayer.js Vegetation overlay with hover tooltips
+  data/scenarios.js               6 QLD scenarios with coords, images, risk levels
+  data/vegetation-mapping.js      24 vegetation types across 4 classification groups
+  utils/geo.js                    Lat/lng bounds from center + radius in km
+api.py                            FastAPI backend (stub — only GET / endpoint exists)
+docs/superpowers/                 Implementation plans and design specs
+frontend/design_assets/           UI mockups, design system, fire-viz comparison
 ```
 
-**Data flow:**
-- Frontend → FastAPI via REST (`/api/scenarios`, `/api/simulation/*`) and WebSocket (`/ws/simulation`)
-- Backend runs a NumPy cellular-automata simulation (Alexandridis model, 100×100 grid), broadcasts sparse state updates every 500ms
-- SQLite stores scenarios and leaderboard results
-- Frontend holds fire grid state in `useRef(new Map())` keyed by `"x,y"` — outside React state to avoid re-renders; Canvas reads directly from it
+## Scenarios (all Queensland)
 
-**Simulation model (Alexandridis CA):**
+| Name | Year | Area | Risk |
+|------|------|------|------|
+| D'Aguilar | 2023 | 22,000 ha | High |
+| Lamington | 2019 | 6,000 ha | High |
+| Glass House Mountains | 2019 | 28,000 ha | Extreme |
+| Bunya Mountains | 2019 | 12,000 ha | High |
+| Girraween | 2019 | 36,000 ha | Catastrophic |
+| Eungella | 2018 | 9,000 ha | Extreme |
+
+## What Is Implemented
+
+**Landing page (`LandingPage.jsx`)**
+- Animated ember background (55 particles, CSS keyframes: rise + sway)
+- Scenario card grid (3×2)
+- Grid/Map view toggle — switches between card grid and `ScenarioMapView`
+
+**Scenario map view (`ScenarioMapView.jsx`)**
+- CartoDB Dark Matter base tiles
+- Custom orange fire pins with glow shadows for all 6 scenarios
+- Popup cards with scenario image, risk badge, Launch button
+- Leaflet popup chrome stripped via CSS overrides
+
+**Simulation map (`MapView.jsx`)**
+- Satellite imagery (Esri/Maxar), bounds locked to 10×10km
+- Togglable layer registry (`LAYER_DEFS`) — Fire and Foliage layers
+- FlyToScenario animation (1.5s)
+- Wind compass + speed slider (0–100 km/h)
+- Live stats panel (burning cells, burned ha, tick, score)
+- Pause/resume, visual effects toggle
+
+**Canvas layers**
+- `BaseCanvasLayer.js` — rAF loop, resize handling, proper cleanup
+- `FireCanvasLayer.js` — cell state colours, shadow glow (ctx.shadowBlur), burn-age colour fade (orange → deep red), ember particle system (max 600, wind-drifted, size/opacity decay)
+- `VegetationCanvasLayer.js` — 35% transparent overlay, type-specific colours, hover tooltips showing type + name, group filter
+
+**Client-side simulation (`MockWebSocket.js`)**
+- Alexandridis cellular automata, 1000×1000 grid (10m cells = 10×10km)
+- Procedural Voronoi vegetation generation (24 types)
+- Wind-biased spread (dot product, 2.5× max multiplier)
+- Base ignition prob: 0.16, burn duration: 14 ticks (~7s)
+- Interactive tools: water drops, control lines, backburns
+- Emits `FULL_SYNC` / `TICK_UPDATE` message format — ready for FastAPI backend
+- Pause/resume support
+
+**`useSimulation.js` hook**
+- `gridRef` — `Map<"x,y", state>` (never in React state)
+- `burnAgeRef` — `Map<"x,y", number>`
+- Stats: burning, burned, burnedHa, score, tick, wind
+- Methods: pause/resume, setWind, interact (tool + GPS coords)
+
+## What Is Not Yet Implemented
+
+- FastAPI backend (api.py is a 7-line stub; all simulation runs in MockWebSocket)
+- SQLite storage (scenarios table, leaderboard)
+- Water drop / control line / backburn tools wired to real backend
+- Real WebSocket synchronisation with backend
+- Atmospheric sliders (temp 0–50°C, humidity 0–100%) — wind only is live
+- Tool palette UI (Water Drop, Control Line, Backburn, Evac Zone)
+- Leaderboard screen
+
+## Simulation Model (Alexandridis CA)
+
 - Cell states: `0` Unburned · `1` Burning · `2` Burned · `3` Control Line · `4` Watered
-- Ignition: `P_burn = P₀ · (1 + P_veg) · (1 + P_den) · P_w · P_s` where `P₀ = 0.58`
+- Ignition: `P_burn = P₀ · (1 + P_veg) · (1 + P_den) · P_w · P_s` where `P₀ = 0.58` (mock uses 0.16)
 - Wind factor: `P_w = exp(V · [0.045 + 0.131·(cos(θ)−1)])`
 - Slope factor: `P_s = exp(0.078 · slope_angle)`
 - Moisture threshold: spread stops if fuel moisture > 25%
-- Target: <100ms per tick on a 100×100 grid
 
-**WebSocket protocol:**
+## WebSocket Protocol
+
 - `FULL_SYNC` — full grid + stats on connect/reset
-- `TICK_UPDATE` — sparse `{x, y, s}` changes only, every 500ms
+- `TICK_UPDATE` — sparse `{x, y, s}` changes only, every ~500ms
 
-## API Endpoints
+## Planned API Endpoints (not yet implemented)
 
 | Method | Path | Purpose |
 |--------|------|---------|
@@ -66,7 +134,7 @@ api.py                FastAPI backend (currently a stub)
 | POST | `/api/simulation/interact` | Apply tool at GPS coords |
 | GET | `/api/leaderboard` | Top 10 scores |
 
-## SQLite Schema
+## Planned SQLite Schema
 
 ```sql
 CREATE TABLE scenarios (id, name, center_lat, center_lng, initial_fire BLOB, fuel_map BLOB);
@@ -74,27 +142,22 @@ CREATE TABLE results   (id, team_name, scenario_id, score, ha_burned REAL, times
 ```
 
 ## Tech Stack
-- **Frontend:** React 18, react-leaflet 4, Vite 8, Tailwind CSS v4, Lucide icons
+
+- **Frontend:** React 18.2, react-leaflet 4.2.1, Vite 8.0.8, Tailwind CSS v4.2.2, Lucide icons
 - **Backend:** FastAPI, NumPy, SQLite (raw sqlite3, no ORM), Uvicorn
 - **No TypeScript** — pure JSX throughout
 
-## Fire Visualisation (decided, not yet implemented)
+## Design System
 
-Use **Option 1: HTML5 Canvas + Shadow Glow** rendered as a custom Leaflet layer.
+`frontend/design_assets/design-system.md` — "Tactical Sentinel" dark theme, glassmorphism panels, Manrope + Inter fonts, orange/navy palette.
 
-- One `L.Layer` subclass (~30 lines) that owns a `<canvas>` sized to the map container
-- Re-draws on Leaflet `moveend` / `zoomend` events using `map.latLngToContainerPoint()` for cell → pixel mapping
-- Per burning cell: `ctx.shadowBlur` + `ctx.shadowColor` for glow; fill colour shifts orange → deep red based on `burnAge / BURN_DURATION`
-- Burned cells: flat dark charcoal fill, no glow
-- Target: <5ms per render pass for a 100×100 grid
-- Grid state lives in `useRef(new Map())` keyed by `"x,y"` — written directly by the WebSocket handler, read directly by the canvas — never touches React state to avoid re-renders
-
-Alternatives considered and rejected: DOM/SVG rectangles (no glow, collapses at 100×100), canvas particles/deck.gl (4× render cost, complex, overkill for the audience), image overlay (500ms update lag, `toDataURL` GC pressure).
-
-See `frontend/design_assets/fire-viz-comparison.html` for a live side-by-side demo of all four options.
+Reference files:
+- `fire-viz-comparison.html` — side-by-side comparison of 4 fire rendering approaches (Option 1 chosen and implemented)
+- `foliage-colors.html` — vegetation colour palette
+- `wind-viz-options.html` — wind visualisation mockups
+- `dashboard-mockup.html/.png` — full UI mockup with left sidebar (sliders, tool palette), map, stats panel
 
 ## Dashboard UI (planned)
 
 - **Left sidebar:** atmospheric sliders (temp 0–50°C, wind 0–100 km/h, humidity 0–100%), tool palette (Water Drop, Control Line, Backburn, Evac Zone), real-time stats
-- **Map:** full-screen satellite view with Canvas fire overlay (glowing particles); clicking with an armed tool sends GPS coords to backend
-- **Design system:** `frontend/design_assets/design-system.md` — "Tactical Sentinel" dark theme, glassmorphism panels, Manrope + Inter fonts, orange/navy palette
+- **Map:** full-screen satellite view with Canvas fire overlay; clicking with an armed tool sends GPS coords to backend
