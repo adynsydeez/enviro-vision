@@ -1,19 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
-import { ArrowLeft, Flame, MapPin } from 'lucide-react';
+import { ArrowLeft, Flame, MapPin, Zap, Shield } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import { RISK_LEVELS } from './data/scenarios';
-
-// Returns [[south, west], [north, east]] for a square of side 2*radiusKm
-function getBounds(center, radiusKm = 5) {
-  const [lat, lng] = center;
-  const latDelta = radiusKm / 111.32;
-  const lngDelta = radiusKm / (111.32 * Math.cos((lat * Math.PI) / 180));
-  return [
-    [lat - latDelta, lng - lngDelta],
-    [lat + latDelta, lng + lngDelta],
-  ];
-}
+import { getBounds } from './utils/geo';
+import { useSimulation } from './hooks/useSimulation';
+import { GRID_SIZE } from './services/MockWebSocket';
+import FireCanvasLayer from './layers/FireCanvasLayer';
 
 function FlyToScenario({ center, zoom }) {
   const map = useMap();
@@ -23,8 +16,21 @@ function FlyToScenario({ center, zoom }) {
   return null;
 }
 
+function FireLayer({ gridRef, scenario }) {
+  const map = useMap();
+  useEffect(() => {
+    const bounds = getBounds(scenario.center, 5);
+    const layer  = new FireCanvasLayer(gridRef, bounds, GRID_SIZE);
+    map.addLayer(layer);
+    return () => map.removeLayer(layer);
+  }, [map, gridRef, scenario]);
+  return null;
+}
+
 export default function MapView({ scenario, onBack }) {
   const risk = RISK_LEVELS[scenario.risk];
+  const bounds = useMemo(() => getBounds(scenario.center, 5), [scenario]);
+  const { gridRef, stats, status } = useSimulation(scenario);
 
   return (
     <div className="relative w-full h-screen">
@@ -35,7 +41,7 @@ export default function MapView({ scenario, onBack }) {
         scrollWheelZoom
         style={{ height: '100%', width: '100%' }}
         zoomControl={false}
-        maxBounds={getBounds(scenario.center, 5)}
+        maxBounds={bounds}
         maxBoundsViscosity={1.0}
         minZoom={13}
       >
@@ -44,6 +50,7 @@ export default function MapView({ scenario, onBack }) {
           url="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}.png"
         />
         <FlyToScenario center={scenario.center} zoom={scenario.zoom} />
+        <FireLayer gridRef={gridRef} scenario={scenario} />
       </MapContainer>
 
       {/* Overlay panel */}
@@ -57,7 +64,7 @@ export default function MapView({ scenario, onBack }) {
           Scenarios
         </button>
 
-        {/* Scenario info card */}
+        {/* Scenario info */}
         <div className="bg-gray-950/90 border border-gray-700 rounded-xl backdrop-blur-sm p-4 w-64">
           <div className="flex items-center gap-2 mb-2">
             <span className="flex items-center gap-1 text-xs text-gray-400">
@@ -76,6 +83,50 @@ export default function MapView({ scenario, onBack }) {
               <Flame size={11} className="text-orange-500" />
               {scenario.areaHa} ha
             </span>
+          </div>
+        </div>
+
+        {/* Live stats */}
+        <div className="bg-gray-950/90 border border-gray-700 rounded-xl backdrop-blur-sm p-4 w-64">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Live Stats</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+              status === 'running'    ? 'bg-green-950 text-green-400' :
+              status === 'connecting' ? 'bg-yellow-950 text-yellow-400' :
+                                       'bg-gray-800 text-gray-500'
+            }`}>
+              {status}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-xs text-gray-500 mb-0.5">Burning</p>
+              <p className="text-orange-400 font-bold text-lg leading-none">{stats.burning}</p>
+              <p className="text-gray-600 text-xs">cells</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-0.5">Burned</p>
+              <p className="text-red-400 font-bold text-lg leading-none">{stats.burned}</p>
+              <p className="text-gray-600 text-xs">cells</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-0.5 flex items-center gap-1">
+                <Zap size={10} />Tick
+              </p>
+              <p className="text-white font-bold text-lg leading-none">{stats.tick}</p>
+              <p className="text-gray-600 text-xs">× 500ms</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-0.5 flex items-center gap-1">
+                <Shield size={10} />Score
+              </p>
+              <p className={`font-bold text-lg leading-none ${
+                stats.score > 70 ? 'text-green-400' :
+                stats.score > 40 ? 'text-yellow-400' : 'text-red-400'
+              }`}>{stats.score}</p>
+              <p className="text-gray-600 text-xs">/ 100</p>
+            </div>
           </div>
         </div>
       </div>
