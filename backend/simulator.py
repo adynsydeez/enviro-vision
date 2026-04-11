@@ -32,7 +32,7 @@ class GridFireSimulation:
 
     def _load_real_data(self):
         """Loads processed fuel and elevation CSVs and interpolates onto the grid."""
-        output_data_dir = os.path.join(self.base_dir, "output_data")
+        output_data_dir = os.path.join(self.base_dir, "data_processing", "output_data")
         fuel_path = os.path.join(output_data_dir, "cropped_fuel_types.csv")
         elev_path = os.path.join(output_data_dir, "cropped_elevation.csv")
 
