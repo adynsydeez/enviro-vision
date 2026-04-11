@@ -119,3 +119,19 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* Leaflet popup chrome — replaced by custom React card content */
+.leaflet-popup-content-wrapper {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+.leaflet-popup-tip-container {
+  display: none !important;
+}
+.leaflet-popup-content {
+  margin: 0 !important;
+  line-height: 1 !important;
+}

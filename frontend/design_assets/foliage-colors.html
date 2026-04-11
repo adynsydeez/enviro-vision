@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Foliage Color Mapping</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #f0f0f0;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            padding: 2rem;
+            margin: 0;
+        }
+        .container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 1000px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 180px repeat(4, 1fr);
+            gap: 4px;
+            background-color: #e5e5e5;
+            padding: 4px;
+            border-radius: 4px;
+        }
+        .header {
+            font-weight: bold;
+            text-align: center;
+            padding: 0.5rem;
+            background-color: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .row-label {
+            font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 0.5rem;
+            background-color: #f5f5f5;
+            font-size: 0.9rem;
+            text-align: right;
+            padding-right: 1rem;
+        }
+        .color-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 0.5rem;
+            min-height: 80px;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            font-size: 0.85rem;
+            font-weight: bold;
+            box-sizing: border-box;
+        }
+        .color-box.dark-text {
+            color: #333;
+            text-shadow: none;
+        }
+        .color-box span {
+            font-family: monospace;
+            font-size: 0.75rem;
+            font-weight: normal;
+            margin-top: 4px;
+            opacity: 0.9;
+        }
+        .empty {
+            background-color: #e2e1e6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Foliage Color Mapping</h1>
+        
+        <div class="grid">
+            <!-- Headers -->
+            <div class="header" style="background-color: transparent;"></div>
+            <div class="header">1<br><span style="font-size:0.8rem; font-weight:normal;">(0-10%)</span></div>
+            <div class="header">2<br><span style="font-size:0.8rem; font-weight:normal;">(10-30%)</span></div>
+            <div class="header">3<br><span style="font-size:0.8rem; font-weight:normal;">(30-70%)</span></div>
+            <div class="header">4<br><span style="font-size:0.8rem; font-weight:normal;">(70-100%)</span></div>
+
+            <!-- Tall trees -->
+            <div class="row-label">Tall trees<br><span style="font-weight:normal;font-size:0.8rem">(over 30 m)</span></div>
+            <div class="empty"></div>
+            <div class="color-box dark-text" style="background-color: #798D5B;">Tall woodland<br><span>#798D5B</span></div>
+            <div class="color-box" style="background-color: #215426;">Tall open forest<br><span>#215426</span></div>
+            <div class="color-box" style="background-color: #5D0000;">Tall closed forest<br><span>#5D0000</span></div>
+
+            <!-- Med trees -->
+            <div class="row-label">Med trees<br><span style="font-weight:normal;font-size:0.8rem">(10-30 m)</span></div>
+            <div class="empty"></div>
+            <div class="color-box dark-text" style="background-color: #92BC6A;">Woodland<br><span>#92BC6A</span></div>
+            <div class="color-box" style="background-color: #228032;">Open forest<br><span>#228032</span></div>
+            <div class="color-box" style="background-color: #BB0002; grid-row: span 2;">Closed forest<br><span>#BB0002</span></div>
+
+            <!-- Low trees -->
+            <div class="row-label">Low trees<br><span style="font-weight:normal;font-size:0.8rem">(&lt;10 m)</span></div>
+            <div class="empty"></div>
+            <div class="color-box dark-text" style="background-color: #CCDF9F;">Low woodland<br><span>#CCDF9F</span></div>
+            <div class="color-box" style="background-color: #3BB143;">Low open forest<br><span>#3BB143</span></div>
+            <!-- Col 4 spanned by Closed forest above -->
+
+            <!-- Tall shrubs -->
+            <div class="row-label">Tall shrubs<br><span style="font-weight:normal;font-size:0.8rem">(2-5 m)</span></div>
+            <div class="empty"></div>
+            <div class="empty"></div>
+            <div class="color-box dark-text" style="background-color: #B5845C; grid-column: span 2;">Tall shrubland<br><span>#B5845C</span></div>
+
+            <!-- Med shrubs -->
+            <div class="row-label">Med shrubs<br><span style="font-weight:normal;font-size:0.8rem">(0.5-2 m)</span></div>
+            <div class="empty"></div>
+            <div class="color-box dark-text" style="background-color: #F0C9B0;">Open shrubland<br><span>#F0C9B0</span></div>
+            <div class="color-box dark-text" style="background-color: #F1AB71; grid-column: span 2; grid-row: span 2;">Shrubland<br><span>#F1AB71</span></div>
+
+            <!-- Low shrubs -->
+            <div class="row-label">Low shrubs<br><span style="font-weight:normal;font-size:0.8rem">(&lt;0.5 m)</span></div>
+            <div class="empty"></div>
+            <div class="empty"></div>
+            <!-- Col 3,4 spanned by Shrubland above -->
+
+            <!-- Grasslands (Hummock) -->
+            <div class="row-label" style="grid-row: span 3; justify-content: flex-start; padding-top: 1.5rem;">Grasslands</div>
+            <div class="color-box dark-text" style="background-color: #FFF6B5; grid-column: span 4;">Hummock grassland<br><span>#FFF6B5</span></div>
+            
+            <!-- Grasslands (Sparse/Open/Grassland) -->
+            <!-- The label spans 3 rows, so these start from col 2 -->
+            <div class="color-box dark-text" style="background-color: #FFFAE6;">Sparse grassland<br><span>#FFFAE6</span></div>
+            <div class="color-box dark-text" style="background-color: #E0E3B6;">Open grassland<br><span>#E0E3B6</span></div>
+            <div class="color-box dark-text" style="background-color: #A9AC70; grid-column: span 2;">Grassland<br><span>#A9AC70</span></div>
+
+            <!-- Grasslands (Croplands) -->
+            <!-- Col 1 is still the spanned label -->
+            <div class="color-box dark-text" style="background-color: #F5E56B; grid-column: span 4;">Croplands and pastures<br><span>#F5E56B</span></div>
+
+            <!-- Other 1 -->
+            <div class="row-label" style="grid-row: span 2; justify-content: flex-start; padding-top: 1.5rem;">Other</div>
+            <div class="color-box dark-text" style="background-color: #EEA9CB;">Sedgeland<br><span>#EEA9CB</span></div>
+            <div class="color-box dark-text" style="background-color: #FFFFFF; outline: 1px solid #ccc; outline-offset: -1px;">Bare<br><span>#FFFFFF</span></div>
+            <div class="color-box dark-text" style="background-color: #9EC0E6;">Wetland<br><span>#9EC0E6</span></div>
+            <div class="color-box" style="background-color: #000000;">Built-up<br><span>#000000</span></div>
+
+            <!-- Other 2 -->
+            <!-- Col 1 is still the spanned label -->
+            <div class="color-box" style="background-color: #6C5580;">Plantation<br><span>#6C5580</span></div>
+            <div class="color-box dark-text" style="background-color: #EFA600;">Horticulture<br><span>#EFA600</span></div>
+            <div class="color-box" style="background-color: #02388E;">Permanent water<br><span>#02388E</span></div>
+            <div class="color-box" style="background-color: #5578CE;">Intermittent water<br><span>#5578CE</span></div>
+        </div>
+    </div>
+</body>
+</html>

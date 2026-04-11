@@ -13,6 +13,7 @@ const DEFAULT_STATS = { burning: 0, burned: 0, burnedHa: 0, score: 100, tick: 0,
 export function useSimulation(scenario) {
   const gridRef    = useRef(new Map());
   const burnAgeRef = useRef(new Map());
+  const vegGridRef = useRef(null);
   const wsRef      = useRef(null);
   const pausedRef  = useRef(false);
 
@@ -41,6 +42,9 @@ export function useSimulation(scenario) {
       if (msg.type === 'FULL_SYNC') {
         gridRef.current.clear();
         burnAgeRef.current.clear();
+        if (msg.vegetationGrid) {
+          vegGridRef.current = new Uint8Array(msg.vegetationGrid);
+        }
         for (const { x, y, s } of msg.grid) {
           const key = `${x},${y}`;
           gridRef.current.set(key, s);
@@ -97,5 +101,5 @@ export function useSimulation(scenario) {
     setPaused(next);
   }, []);
 
-  return { gridRef, burnAgeRef, stats, status, paused, interact, setWind, togglePause };
+  return { gridRef, burnAgeRef, vegGridRef, stats, status, paused, interact, setWind, togglePause };
 }

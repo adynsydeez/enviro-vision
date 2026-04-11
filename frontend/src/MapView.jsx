@@ -1,18 +1,44 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
-import { ArrowLeft, Flame, MapPin, Zap, Shield, Sparkles, Play, Pause } from 'lucide-react';
+import { ArrowLeft, Flame, MapPin, Zap, Shield, Sparkles, Play, Pause, TreeDeciduous } from 'lucide-react';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { RISK_LEVELS } from './data/scenarios';
 import { getBounds } from './utils/geo';
 import { useSimulation } from './hooks/useSimulation';
 import { GRID_SIZE } from './services/MockWebSocket';
+import { VEGETATION_TYPES } from './data/vegetation-mapping';
 import FireCanvasLayer from './layers/FireCanvasLayer';
+import VegetationCanvasLayer from './layers/VegetationCanvasLayer';
 import ToolPalette from './components/ToolPalette';
 import MapClickHandler from './components/MapClickHandler';
 
 // Default wind matches the MockWebSocket constants
 const DEFAULT_WIND_DIR = 45;
 const DEFAULT_WIND_SPD = 30;
+
+// ─── Layer registry ────────────────────────────────────────────────────────────
+// Add a new entry here to extend the Map Layers panel with an additional toggle.
+const LAYER_DEFS = [
+  {
+    id:           'fire',
+    label:        'Fire Simulation',
+    Icon:         Flame,
+    activeStyle:  'bg-orange-950 border-orange-700 text-orange-400',
+    inactiveStyle:'bg-gray-900 border-gray-800 text-gray-500 hover:bg-gray-800',
+  },
+  {
+    id:           'foliage',
+    label:        'Foliage Map',
+    Icon:         TreeDeciduous,
+    activeStyle:  'bg-green-950 border-green-700 text-green-400',
+    inactiveStyle:'bg-gray-900 border-gray-800 text-gray-500 hover:bg-gray-800',
+  },
+  // Future layers: Topography, Wind Field, Evac Zones, etc.
+];
+
+// ─── Sub-components ────────────────────────────────────────────────────────────
 
 function FlyToScenario({ center, zoom }) {
   const map = useMap();
@@ -48,7 +74,83 @@ function FireLayer({ gridRef, burnAgeRef, scenario, windDir, windSpd, effects })
   return null;
 }
 
-// Compass rose — click or drag anywhere to set wind direction
+function VegetationLayer({ vegGridRef, scenario }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const bounds = getBounds(scenario.center, 5);
+    const layer  = new VegetationCanvasLayer(vegGridRef, bounds, GRID_SIZE);
+    map.addLayer(layer);
+    return () => map.removeLayer(layer);
+  }, [map, vegGridRef, scenario]);
+
+  return null;
+}
+
+function FoliageTooltip({ vegGridRef, scenario }) {
+  const map = useMap();
+  const [tooltip, setTooltip] = useState(null); // { x, y, veg } | null
+
+  useEffect(() => {
+    const leafletBounds = L.latLngBounds(getBounds(scenario.center, 5));
+    const gs = GRID_SIZE;
+
+    const onMove = (e) => {
+      const grid = vegGridRef.current;
+      if (!grid) { setTooltip(null); return; }
+
+      const nw    = map.latLngToContainerPoint(leafletBounds.getNorthWest());
+      const se    = map.latLngToContainerPoint(leafletBounds.getSouthEast());
+      const cellW = (se.x - nw.x) / gs;
+      const cellH = (se.y - nw.y) / gs;
+
+      const gx = Math.floor((e.containerPoint.x - nw.x) / cellW);
+      const gy = Math.floor((e.containerPoint.y - nw.y) / cellH);
+
+      if (gx < 0 || gx >= gs || gy < 0 || gy >= gs) { setTooltip(null); return; }
+
+      const typeId = grid[gy * gs + gx];
+      const veg    = typeId > 0 ? VEGETATION_TYPES[typeId] : null;
+
+      setTooltip(veg
+        ? { x: e.containerPoint.x, y: e.containerPoint.y, veg }
+        : null
+      );
+    };
+
+    map.on('mousemove', onMove);
+    map.on('mouseout',  () => setTooltip(null));
+    return () => {
+      map.off('mousemove', onMove);
+      map.off('mouseout');
+    };
+  }, [map, vegGridRef, scenario]);
+
+  if (!tooltip) return null;
+
+  return createPortal(
+    <div
+      style={{
+        position: 'absolute',
+        left: tooltip.x + 14,
+        top:  tooltip.y - 12,
+        pointerEvents: 'none',
+        zIndex: 1001,
+      }}
+    >
+      <div className="bg-gray-950/85 border border-gray-700/50 rounded-lg px-3 py-2 backdrop-blur-md shadow-lg">
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: tooltip.veg.color }} />
+          <span className="text-white text-xs font-semibold">{tooltip.veg.name}</span>
+        </div>
+      </div>
+    </div>,
+    map.getContainer()
+  );
+}
+
+// ─── Wind compass ──────────────────────────────────────────────────────────────
+
 function WindCompass({ windDir, onChange }) {
   const svgRef = useRef(null);
 
@@ -86,7 +188,6 @@ function WindCompass({ windDir, onChange }) {
       style={{ cursor: 'crosshair', userSelect: 'none', touchAction: 'none', flexShrink: 0 }}
     >
       <circle cx="50" cy="50" r="46" fill="rgba(0,0,0,0.35)" stroke="#374151" strokeWidth="1.5" />
-      {/* Cardinal ticks */}
       {[0, 90, 180, 270].map(a => {
         const r = a * Math.PI / 180;
         return (
@@ -97,7 +198,6 @@ function WindCompass({ windDir, onChange }) {
           />
         );
       })}
-      {/* Labels */}
       {[
         { a: 0,   l: 'N', x: 50, y: 10 },
         { a: 90,  l: 'E', x: 90, y: 53 },
@@ -107,10 +207,8 @@ function WindCompass({ windDir, onChange }) {
         <text key={a} x={x} y={y} textAnchor="middle" dominantBaseline="middle"
           fill="#6b7280" fontSize="9" fontFamily="system-ui,sans-serif">{l}</text>
       ))}
-      {/* Downwind direction (where fire spreads) — dashed */}
       <line x1="50" y1="50" x2={dx} y2={dy}
         stroke="#fb923c" strokeWidth="1.5" strokeOpacity="0.35" strokeDasharray="3 2" />
-      {/* Wind FROM arrow */}
       <line x1="50" y1="50" x2={ax} y2={ay}
         stroke="#fb923c" strokeWidth="2.5" strokeLinecap="round" />
       <circle cx={ax} cy={ay} r="4.5" fill="#fb923c" />
@@ -123,10 +221,16 @@ function bearingLabel(deg) {
   return ['N','NE','E','SE','S','SW','W','NW'][Math.round(((deg % 360) + 360) % 360 / 45) % 8];
 }
 
+// ─── Main component ────────────────────────────────────────────────────────────
+
 export default function MapView({ scenario, onBack }) {
   const risk   = RISK_LEVELS[scenario.risk];
   const bounds = useMemo(() => getBounds(scenario.center, 5), [scenario]);
-  const { gridRef, burnAgeRef, stats, status, paused, interact, setWind, togglePause } = useSimulation(scenario);
+  const { gridRef, burnAgeRef, vegGridRef, stats, status, paused, interact, setWind, togglePause } =
+    useSimulation(scenario);
+
+  // Which top-level layers are toggled on (Set of layer ids)
+  const [activeLayers, setActiveLayers] = useState(new Set(['fire']));
 
   const [windDir, setWindDir] = useState(DEFAULT_WIND_DIR);
   const [windSpd, setWindSpd] = useState(DEFAULT_WIND_SPD);
@@ -137,6 +241,14 @@ export default function MapView({ scenario, onBack }) {
   const [cooldownEpoch, setCooldownEpoch] = useState(0);
   const cooldownTimerRef = useRef(null);
   const activeToolRef    = useRef(null);
+
+  const isFoliageActive = activeLayers.has('foliage');
+  // Fire is suppressed whenever the foliage layer is on
+  const isFireActive    = activeLayers.has('fire') && !isFoliageActive;
+
+  const selectLayer = (id) => {
+    setActiveLayers(new Set([id]));
+  };
 
   const handleWindChange = (dir, spd) => {
     setWindDir(dir);
@@ -199,14 +311,22 @@ export default function MapView({ scenario, onBack }) {
           url="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}.png"
         />
         <FlyToScenario center={scenario.center} zoom={scenario.zoom} />
-        <FireLayer
-          gridRef={gridRef}
-          burnAgeRef={burnAgeRef}
-          scenario={scenario}
-          windDir={windDir}
-          windSpd={windSpd}
-          effects={effects}
-        />
+        {isFireActive && (
+          <FireLayer
+            gridRef={gridRef}
+            burnAgeRef={burnAgeRef}
+            scenario={scenario}
+            windDir={windDir}
+            windSpd={windSpd}
+            effects={effects}
+          />
+        )}
+        {isFoliageActive && (
+          <>
+            <VegetationLayer vegGridRef={vegGridRef} scenario={scenario} />
+            <FoliageTooltip  vegGridRef={vegGridRef} scenario={scenario} />
+          </>
+        )}
         <MapClickHandler
           scenario={scenario}
           activeTool={activeTool}
@@ -217,13 +337,14 @@ export default function MapView({ scenario, onBack }) {
         />
       </MapContainer>
 
-      {/* Overlay panel */}
+      {/* Left panel — nav, scenario info, live stats */}
       <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2">
+
         {/* Top button row */}
         <div className="flex gap-2">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 bg-gray-950/90 hover:bg-gray-900 border border-gray-700 text-white text-sm font-medium px-3 py-2 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
+            className="flex items-center gap-2 bg-gray-950/85 hover:bg-gray-900/70 border border-gray-700/50 backdrop-blur-md text-white text-sm font-medium px-3 py-2 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
           >
             <ArrowLeft size={15} />
             Scenarios
@@ -231,7 +352,7 @@ export default function MapView({ scenario, onBack }) {
           <button
             onClick={togglePause}
             title={paused ? 'Resume simulation' : 'Pause simulation'}
-            className="flex items-center gap-1.5 bg-gray-950/90 hover:bg-gray-900 border border-gray-700 text-white text-sm font-medium px-3 py-2 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 bg-gray-950/85 hover:bg-gray-900/70 border border-gray-700/50 backdrop-blur-md text-white text-sm font-medium px-3 py-2 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
           >
             {paused ? <Play size={15} /> : <Pause size={15} />}
           </button>
@@ -241,7 +362,7 @@ export default function MapView({ scenario, onBack }) {
             className={`flex items-center gap-1.5 border text-sm font-medium px-3 py-2 rounded-lg backdrop-blur-sm transition-colors cursor-pointer ${
               effects
                 ? 'bg-orange-950/80 border-orange-700 text-orange-300 hover:bg-orange-900/80'
-                : 'bg-gray-950/90 border-gray-700 text-gray-500 hover:bg-gray-900'
+                : 'bg-gray-950/85 border-gray-700 text-gray-500 hover:bg-gray-900'
             }`}
           >
             <Sparkles size={15} />
@@ -250,7 +371,7 @@ export default function MapView({ scenario, onBack }) {
         </div>
 
         {/* Scenario info */}
-        <div className="bg-gray-950/90 border border-gray-700 rounded-xl backdrop-blur-sm p-4 w-64">
+        <div className="bg-gray-950/85 border border-gray-700/50 rounded-xl backdrop-blur-md p-4 w-64">
           <div className="flex items-center gap-2 mb-2">
             <span className="flex items-center gap-1 text-xs text-gray-400">
               <MapPin size={11} className="text-orange-400" />
@@ -272,19 +393,18 @@ export default function MapView({ scenario, onBack }) {
         </div>
 
         {/* Live stats */}
-        <div className="bg-gray-950/90 border border-gray-700 rounded-xl backdrop-blur-sm p-4 w-64">
+        <div className="bg-gray-950/85 border border-gray-700/50 rounded-xl backdrop-blur-md p-4 w-64">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Live Stats</span>
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-              paused             ? 'bg-blue-950 text-blue-400'    :
-              status === 'running'    ? 'bg-green-950 text-green-400' :
-              status === 'connecting' ? 'bg-yellow-950 text-yellow-400' :
-                                       'bg-gray-800 text-gray-500'
+              paused                  ? 'bg-blue-950 text-blue-400'      :
+              status === 'running'    ? 'bg-green-950 text-green-400'    :
+              status === 'connecting' ? 'bg-yellow-950 text-yellow-400'  :
+                                        'bg-gray-800 text-gray-500'
             }`}>
               {paused ? 'paused' : status}
             </span>
           </div>
-
           <div className="grid grid-cols-2 gap-3">
             <div>
               <p className="text-xs text-gray-500 mb-0.5">Burning</p>
@@ -316,14 +436,37 @@ export default function MapView({ scenario, onBack }) {
           </div>
         </div>
 
+      </div>
+
+      {/* Right panel — map layers, wind */}
+      <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+
+        {/* Map Layers — driven by LAYER_DEFS */}
+        <div className="bg-gray-950/85 border border-gray-700/50 rounded-xl backdrop-blur-md p-4 w-64">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Map Layers</p>
+          <div className="flex flex-col gap-2">
+            {LAYER_DEFS.map((layerDef) => (
+              <button
+                key={layerDef.id}
+                onClick={() => selectLayer(layerDef.id)}
+                className={`border px-3 py-2 text-xs font-bold rounded flex items-center gap-2 cursor-pointer transition-colors ${
+                  (layerDef.id === 'fire' ? isFireActive : activeLayers.has(layerDef.id))
+                    ? layerDef.activeStyle : layerDef.inactiveStyle
+                }`}
+              >
+                <layerDef.Icon size={14} />
+                {layerDef.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Wind controls */}
-        <div className="bg-gray-950/90 border border-gray-700 rounded-xl backdrop-blur-sm p-4 w-64">
+        <div className="bg-gray-950/85 border border-gray-700/50 rounded-xl backdrop-blur-md p-4 w-64">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Wind</p>
           <div className="flex items-start gap-3">
             <WindCompass windDir={windDir} onChange={dir => handleWindChange(dir, windSpd)} />
-
             <div className="flex-1 flex flex-col gap-3 pt-0.5">
-              {/* Direction readout */}
               <div>
                 <p className="text-xs text-gray-500 mb-0.5">Direction</p>
                 <p className="text-white font-bold text-sm leading-none">
@@ -332,8 +475,6 @@ export default function MapView({ scenario, onBack }) {
                 </p>
                 <p className="text-gray-600 text-xs">wind from</p>
               </div>
-
-              {/* Speed slider */}
               <div>
                 <p className="text-xs text-gray-500 mb-1">Speed</p>
                 <input
@@ -349,6 +490,7 @@ export default function MapView({ scenario, onBack }) {
             </div>
           </div>
         </div>
+
       </div>
 
       <ToolPalette
