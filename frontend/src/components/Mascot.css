@@ -1,0 +1,33 @@
+/* Float animation for the mascot and bubble */
+@keyframes mascot-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.mascot-float {
+  animation: mascot-float 3s ease-in-out infinite;
+}
+
+/* Triangle pointer for the speech bubble */
+.mascot-bubble-tail {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 12px;
+  height: 12px;
+  background: rgba(3, 7, 18, 0.85); /* Matches bg-gray-950/85 */
+  border-right: 1px solid rgba(55, 65, 81, 0.5); /* Matches border-gray-700/50 */
+  border-bottom: 1px solid rgba(55, 65, 81, 0.5);
+  z-index: -1;
+}
+
+/* Ensure the backdrop blur works well with the shadow */
+.backdrop-blur-md {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
