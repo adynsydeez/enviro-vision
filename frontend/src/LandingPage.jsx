@@ -129,7 +129,7 @@ export default function LandingPage({ onSelect, onStartQuiz }) {
 
           <button 
             onClick={onStartQuiz}
-            className="text-xs font-bold px-4 py-1.5 bg-orange-500/10 border border-orange-500/30 text-orange-400 rounded-lg hover:bg-orange-500/20 transition-all cursor-pointer"
+            className="text-xs font-black px-5 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-400 transition-all cursor-pointer shadow-lg shadow-orange-500/20"
           >
             Take the Quiz
           </button>
