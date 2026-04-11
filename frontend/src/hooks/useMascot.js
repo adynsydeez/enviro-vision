@@ -17,13 +17,22 @@ export const useMascot = (scenario) => {
   const timeoutRef = useRef(null);
 
   /**
+   * Clear the current message bubble and any active timeouts.
+   */
+  const clearBubble = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    setCurrentMessage('');
+    setShowBubble(false);
+  }, []);
+
+  /**
    * Display a specific message for a set duration.
    */
   const say = useCallback((msg, duration = 3000) => {
-    // Clear any existing timeout to avoid premature clearing of the new message
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
+    clearBubble();
 
     setCurrentMessage(msg);
     setShowBubble(true);
@@ -35,12 +44,14 @@ export const useMascot = (scenario) => {
         timeoutRef.current = null;
       }, duration);
     }
-  }, []);
+  }, [clearBubble]);
 
   /**
    * Advance to the next message in the intro sequence.
    */
   const nextIntro = useCallback(() => {
+    clearBubble();
+    
     const messages = scenario?.introMessages || [];
     const nextIndex = introIndex + 1;
     
@@ -51,10 +62,8 @@ export const useMascot = (scenario) => {
       setShowBubble(true);
     } else {
       setIsIntroActive(false);
-      setCurrentMessage('');
-      setShowBubble(false);
     }
-  }, [scenario, introIndex]);
+  }, [scenario, introIndex, clearBubble]);
 
   /**
    * Trigger a random message from a specific category in the mascot's dialogue.
