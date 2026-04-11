@@ -170,6 +170,7 @@ export default function MapView({ scenario, onBack }) {
   useEffect(() => {
     const onKeyDown = (e) => {
       if (e.key === 'Escape') {
+        activeToolRef.current = null;
         setActiveTool(null);
         setCooldownActive(false);
         cooldownUntil.current = 0;
