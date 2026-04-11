@@ -41,6 +41,9 @@ export class MockWebSocket {
     this._windDir   = WIND_DIR;
     this._windSpd   = WIND_SPD;
 
+    this._vegGrid   = new Uint8Array(GRID_SIZE * GRID_SIZE);
+    this._generateVegetation();
+
     // Precompute downwind unit vector (direction fire spreads toward)
     this._updateWindVec();
 
@@ -51,10 +54,11 @@ export class MockWebSocket {
       this.readyState = 1; // OPEN
       this.onopen?.({ type: 'open' });
       this._emit({
-        type:     'FULL_SYNC',
-        gridSize: GRID_SIZE,
-        grid:     this._snapshot(),
-        stats:    this._calcStats(),
+        type:           'FULL_SYNC',
+        gridSize:       GRID_SIZE,
+        grid:           this._snapshot(),
+        vegetationGrid: Array.from(this._vegGrid),
+        stats:          this._calcStats(),
       });
       this._interval = setInterval(() => this._tick_(), TICK_MS);
     }, 80);
@@ -108,6 +112,20 @@ export class MockWebSocket {
     const rad = ((this._windDir + 180) % 360) * Math.PI / 180;
     this._dwx = Math.sin(rad);  // +x = east
     this._dwy = -Math.cos(rad); // +y = south (grid row increases downward)
+  }
+
+  _generateVegetation() {
+    const CHUNK = 50;
+    for (let y = 0; y < GRID_SIZE; y += CHUNK) {
+      for (let x = 0; x < GRID_SIZE; x += CHUNK) {
+        const type = Math.floor(Math.random() * 15) + 1; // 1-15 matching mapping
+        for (let cy = 0; cy < CHUNK && y+cy < GRID_SIZE; cy++) {
+          for (let cx = 0; cx < CHUNK && x+cx < GRID_SIZE; cx++) {
+            this._vegGrid[(y+cy) * GRID_SIZE + (x+cx)] = type;
+          }
+        }
+      }
+    }
   }
 
   _i(x, y) { return y * GRID_SIZE + x; }
