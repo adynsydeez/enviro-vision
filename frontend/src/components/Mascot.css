@@ -12,6 +12,22 @@
   animation: mascot-float 3s ease-in-out infinite;
 }
 
+/* Speech bubble entry animation (previously tailwind-animate) */
+@keyframes bubble-fade-in-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mascot-bubble-animate {
+  animation: bubble-fade-in-slide-up 300ms ease-out;
+}
+
 /* Triangle pointer for the speech bubble */
 .mascot-bubble-tail {
   position: absolute;

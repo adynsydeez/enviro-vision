@@ -13,10 +13,10 @@ const Mascot = ({ mascotHook }) => {
     <>
       {/* Click-anywhere overlay during intro sequence */}
       {isIntroActive && (
-        <div 
-          className="fixed inset-0 z-[2000] cursor-pointer"
+        <button 
+          className="fixed inset-0 z-[2000] cursor-pointer bg-transparent border-none w-full h-full p-0"
           onClick={nextIntro}
-          aria-hidden="true"
+          aria-label="Next intro message"
         />
       )}
 
@@ -25,7 +25,7 @@ const Mascot = ({ mascotHook }) => {
         
         {/* Speech Bubble */}
         {showBubble && currentMessage && (
-          <div className="relative mb-4 max-w-[280px] md:max-w-xs pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="relative mb-4 max-w-[280px] md:max-w-xs pointer-events-auto mascot-bubble-animate">
             <div className={`
               bg-gray-950/85 border border-gray-700/50 backdrop-blur-md 
               text-white p-4 shadow-2xl
