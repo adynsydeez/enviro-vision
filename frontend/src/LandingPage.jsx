@@ -1,4 +1,5 @@
-import { Flame, MapPin, ChevronRight, Wind } from 'lucide-react';
+import { MapPin, ChevronRight, Wind, Flame } from 'lucide-react';
+import mascot from './assets/mascot.png';
 import scenarios, { RISK_LEVELS } from './data/scenarios';
 
 function ScenarioCard({ scenario, onSelect }) {
@@ -52,11 +53,9 @@ export default function LandingPage({ onSelect }) {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       {/* Header */}
-      <header className="border-b border-gray-800/60 px-6 py-4">
+      <header className="border-b border-gray-800/60 px-6 py-3">
         <div className="max-w-7xl mx-auto flex items-center gap-3">
-          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-orange-500/10 border border-orange-500/30">
-            <Flame size={18} className="text-orange-400" />
-          </div>
+          <img src={mascot} alt="Palan-Tir mascot" className="w-10 h-10 object-contain" />
           <div>
             <span className="font-bold text-white tracking-wide text-sm">PALAN-TIR</span>
             <span className="text-gray-600 mx-2">·</span>
