@@ -88,6 +88,7 @@ export default function ScenarioMapView({ scenarios, onSelect }) {
     <MapContainer
       center={[-25, 152]}
       zoom={7}
+      attributionControl={false}
       style={{ height: '100%', width: '100%' }}
       scrollWheelZoom
     >

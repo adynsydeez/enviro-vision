@@ -12,6 +12,8 @@ import { VEGETATION_TYPES } from './data/vegetation-mapping';
 import FireCanvasLayer from './layers/FireCanvasLayer';
 import VegetationCanvasLayer from './layers/VegetationCanvasLayer';
 import WindCanvasLayer from './layers/WindCanvasLayer';
+import ToolPalette from './components/ToolPalette';
+import MapClickHandler from './components/MapClickHandler';
 
 // Default wind matches the MockWebSocket constants
 const DEFAULT_WIND_DIR = 45;
@@ -246,7 +248,7 @@ function bearingLabel(deg) {
 export default function MapView({ scenario, onBack }) {
   const risk   = RISK_LEVELS[scenario.risk];
   const bounds = useMemo(() => getBounds(scenario.center, 5), [scenario]);
-  const { gridRef, burnAgeRef, vegGridRef, stats, status, paused, setWind, togglePause } =
+  const { gridRef, burnAgeRef, vegGridRef, stats, status, paused, interact, setWind, togglePause } =
     useSimulation(scenario);
 
   // Which top-level layers are toggled on (Set of layer ids)
@@ -256,6 +258,12 @@ export default function MapView({ scenario, onBack }) {
   const [windSpd, setWindSpd] = useState(DEFAULT_WIND_SPD);
   const [effects, setEffects] = useState(true);
   const [showWindLayer, setShowWindLayer] = useState(false);
+  const [activeTool,    setActiveTool]    = useState(null);
+  const [cooldownActive, setCooldownActive] = useState(false);
+  const cooldownUntil    = useRef(0);
+  const [cooldownEpoch, setCooldownEpoch] = useState(0);
+  const cooldownTimerRef = useRef(null);
+  const activeToolRef    = useRef(null);
 
   const isFoliageActive = activeLayers.has('foliage');
   // Fire is suppressed whenever the foliage layer is on
@@ -263,6 +271,14 @@ export default function MapView({ scenario, onBack }) {
 
   const selectLayer = (id) => {
     setActiveLayers(new Set([id]));
+    // Disarm any active tool when leaving the fire layer
+    if (id !== 'fire') {
+      activeToolRef.current = null;
+      setActiveTool(null);
+      setCooldownActive(false);
+      cooldownUntil.current = 0;
+      clearTimeout(cooldownTimerRef.current);
+    }
   };
 
   const handleWindChange = (dir, spd) => {
@@ -271,6 +287,43 @@ export default function MapView({ scenario, onBack }) {
     setWind(dir, spd);
   };
 
+  const handleToolSelect = (id) => {
+    const isDeselecting = activeToolRef.current === id;
+    activeToolRef.current = isDeselecting ? null : id;
+    setActiveTool(activeToolRef.current);
+    if (isDeselecting) {
+      setCooldownActive(false);
+      cooldownUntil.current = 0;
+      clearTimeout(cooldownTimerRef.current);
+    }
+  };
+
+  const handleWaterDrop = () => {
+    cooldownUntil.current = Date.now() + 3000;
+    setCooldownEpoch(e => e + 1);
+    setCooldownActive(true);
+    clearTimeout(cooldownTimerRef.current);
+    cooldownTimerRef.current = setTimeout(() => setCooldownActive(false), 3000);
+  };
+
+  useEffect(() => {
+    return () => clearTimeout(cooldownTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        activeToolRef.current = null;
+        setActiveTool(null);
+        setCooldownActive(false);
+        cooldownUntil.current = 0;
+        clearTimeout(cooldownTimerRef.current);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   return (
     <div className="relative w-full h-screen">
       {/* Map */}
@@ -278,6 +331,7 @@ export default function MapView({ scenario, onBack }) {
         center={scenario.center}
         zoom={12}
         scrollWheelZoom
+        attributionControl={false}
         style={{ height: '100%', width: '100%' }}
         zoomControl={false}
         maxBounds={bounds}
@@ -289,7 +343,6 @@ export default function MapView({ scenario, onBack }) {
           url="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}.png"
         />
         <FlyToScenario center={scenario.center} zoom={scenario.zoom} />
-
         {isFireActive && (
           <FireLayer
             gridRef={gridRef}
@@ -309,6 +362,14 @@ export default function MapView({ scenario, onBack }) {
         {showWindLayer && (
           <WindLayer windDir={windDir} windSpd={windSpd} />
         )}
+        <MapClickHandler
+          scenario={scenario}
+          activeTool={activeTool}
+          cooldownUntil={cooldownUntil}
+          gridRef={gridRef}
+          interact={interact}
+          onWaterDrop={handleWaterDrop}
+        />
       </MapContainer>
 
       {/* Left panel — nav, scenario info, live stats */}
@@ -480,6 +541,15 @@ export default function MapView({ scenario, onBack }) {
         </div>
 
       </div>
+
+      {isFireActive && (
+        <ToolPalette
+          activeTool={activeTool}
+          cooldownActive={cooldownActive}
+          cooldownEpoch={cooldownEpoch}
+          onToolSelect={handleToolSelect}
+        />
+      )}
     </div>
   );
 }
