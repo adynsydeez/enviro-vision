@@ -120,7 +120,7 @@ export default function LandingPage({ onSelect }) {
           <img src={mascot} alt="FireCommander mascot" className="w-8 h-8 object-contain" />
           <span className="font-bold text-white tracking-wide text-sm">FireCommander</span>
           <span className="text-gray-600">·</span>
-          <span className="text-gray-400 text-sm">Wildfire Simulation Training</span>
+          <span className="text-gray-400 text-sm">Play with fire. Safely.</span>
         </div>
       </header>
 
