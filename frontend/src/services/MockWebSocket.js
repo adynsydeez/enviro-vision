@@ -46,8 +46,8 @@ export class MockWebSocket {
 
     this._seedFire();
 
-    // Simulate async handshake
-    setTimeout(() => {
+    // Simulate async handshake — store handle so close() can cancel it
+    this._connectTimer = setTimeout(() => {
       this.readyState = 1; // OPEN
       this.onopen?.({ type: 'open' });
       this._emit({
@@ -72,9 +72,14 @@ export class MockWebSocket {
   }
 
   close() {
+    clearTimeout(this._connectTimer);
     clearInterval(this._interval);
     this.readyState = 3; // CLOSED
-    this.onclose?.({ type: 'close' });
+    this.onopen    = null;
+    this.onmessage = null;
+    const onclose  = this.onclose;
+    this.onclose   = null;
+    onclose?.({ type: 'close' });
   }
 
   setWind(dir, spd) {
