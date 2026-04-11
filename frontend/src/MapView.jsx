@@ -7,6 +7,8 @@ import { getBounds } from './utils/geo';
 import { useSimulation } from './hooks/useSimulation';
 import { GRID_SIZE } from './services/MockWebSocket';
 import FireCanvasLayer from './layers/FireCanvasLayer';
+import ToolPalette from './components/ToolPalette';
+import MapClickHandler from './components/MapClickHandler';
 
 // Default wind matches the MockWebSocket constants
 const DEFAULT_WIND_DIR = 45;
@@ -124,17 +126,52 @@ function bearingLabel(deg) {
 export default function MapView({ scenario, onBack }) {
   const risk   = RISK_LEVELS[scenario.risk];
   const bounds = useMemo(() => getBounds(scenario.center, 5), [scenario]);
-  const { gridRef, burnAgeRef, stats, status, paused, setWind, togglePause } = useSimulation(scenario);
+  const { gridRef, burnAgeRef, stats, status, paused, interact, setWind, togglePause } = useSimulation(scenario);
 
   const [windDir, setWindDir] = useState(DEFAULT_WIND_DIR);
   const [windSpd, setWindSpd] = useState(DEFAULT_WIND_SPD);
   const [effects, setEffects] = useState(true);
+  const [activeTool,    setActiveTool]    = useState(null);
+  const [cooldownActive, setCooldownActive] = useState(false);
+  const cooldownUntil = useRef(0);
+  const cooldownEpoch = useRef(0);
 
   const handleWindChange = (dir, spd) => {
     setWindDir(dir);
     setWindSpd(spd);
     setWind(dir, spd);
   };
+
+  const handleToolSelect = (id) => {
+    setActiveTool(prev => {
+      if (prev === id) {
+        // Deselect: reset cooldown immediately
+        setCooldownActive(false);
+        cooldownUntil.current = 0;
+        return null;
+      }
+      return id;
+    });
+  };
+
+  const handleWaterDrop = () => {
+    cooldownUntil.current = Date.now() + 3000;
+    cooldownEpoch.current += 1;
+    setCooldownActive(true);
+    setTimeout(() => setCooldownActive(false), 3000);
+  };
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setActiveTool(null);
+        setCooldownActive(false);
+        cooldownUntil.current = 0;
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   return (
     <div className="relative w-full h-screen">
@@ -161,6 +198,14 @@ export default function MapView({ scenario, onBack }) {
           windDir={windDir}
           windSpd={windSpd}
           effects={effects}
+        />
+        <MapClickHandler
+          scenario={scenario}
+          activeTool={activeTool}
+          cooldownUntil={cooldownUntil}
+          gridRef={gridRef}
+          interact={interact}
+          onWaterDrop={handleWaterDrop}
         />
       </MapContainer>
 
@@ -297,6 +342,13 @@ export default function MapView({ scenario, onBack }) {
           </div>
         </div>
       </div>
+
+      <ToolPalette
+        activeTool={activeTool}
+        cooldownActive={cooldownActive}
+        cooldownEpoch={cooldownEpoch.current}
+        onToolSelect={handleToolSelect}
+      />
     </div>
   );
 }
