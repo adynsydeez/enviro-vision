@@ -1,9 +1,5 @@
-import blueMountains from '../assets/blue-mountains.jpg';
 import daguilar from '../assets/D\'Aguilar.jpg';
-import grampians from '../assets/Grampians.jpg';
-import kangarooIsland from '../assets/KangarooIsland.jpg';
 import lamington from '../assets/Lamington-National-Park.jpg';
-import dandenong from '../assets/Mt_Dandenong_from_Mooroolbark.jpg';
 
 export const RISK_LEVELS = {
   Catastrophic: { label: 'Catastrophic', color: 'text-red-400', bg: 'bg-red-950 border-red-800' },
@@ -12,18 +8,6 @@ export const RISK_LEVELS = {
 };
 
 const scenarios = [
-  {
-    id: 'blue-mountains',
-    name: 'Blue Mountains',
-    state: 'NSW',
-    year: 2019,
-    center: [-33.6484, 150.3118],
-    zoom: 14,
-    description: 'Eucalypt forest fire across the Greater Blue Mountains Heritage Area. High-speed fire fronts driven by westerly winds toward escarpment communities.',
-    areaHa: '45,000',
-    risk: 'Extreme',
-    image: blueMountains,
-  },
   {
     id: 'daguilar',
     name: "D'Aguilar National Park",
@@ -35,30 +19,6 @@ const scenarios = [
     areaHa: '22,000',
     risk: 'High',
     image: daguilar,
-  },
-  {
-    id: 'grampians',
-    name: 'Grampians (Gariwerd)',
-    state: 'VIC',
-    year: 2006,
-    center: [-37.15, 142.499],
-    zoom: 14,
-    description: 'Extensive woodland and heath across the Grampians ranges. Strong northerly winds during heatwave drove fire deep into the national park.',
-    areaHa: '130,000',
-    risk: 'Extreme',
-    image: grampians,
-  },
-  {
-    id: 'kangaroo-island',
-    name: 'Kangaroo Island',
-    state: 'SA',
-    year: 2019,
-    center: [-35.8516, 137.2072],
-    zoom: 14,
-    description: 'Dense native scrub across southern island habitat. Lightning strike ignition during extreme heatwave conditions devastated wildlife refuges.',
-    areaHa: '211,000',
-    risk: 'Catastrophic',
-    image: kangarooIsland,
   },
   {
     id: 'lamington',
@@ -73,16 +33,52 @@ const scenarios = [
     image: lamington,
   },
   {
-    id: 'dandenong',
-    name: 'Dandenong Ranges',
-    state: 'VIC',
-    year: 2009,
-    center: [-37.858, 145.359],
+    id: 'glass-house-mountains',
+    name: 'Glass House Mountains',
+    state: 'QLD',
+    year: 2019,
+    center: [-26.883, 152.957],
     zoom: 14,
-    description: 'Mountain ash forest on Melbourne\'s urban fringe. Complex wind channelling through deep gullies created unpredictable fire behaviour near communities.',
-    areaHa: '18,000',
+    description: 'Open eucalypt forest and heath across the Sunshine Coast hinterland. Fast-moving grassfire flanks driven by strong north-westerlies threatened townships and wildlife corridors.',
+    areaHa: '28,000',
     risk: 'Extreme',
-    image: dandenong,
+    image: daguilar,
+  },
+  {
+    id: 'bunya-mountains',
+    name: 'Bunya Mountains',
+    state: 'QLD',
+    year: 2019,
+    center: [-26.871, 151.573],
+    zoom: 14,
+    description: 'Ancient bunya pine and hoop pine rainforest on the Darling Downs escarpment. Drought-stressed understorey carried fire into stands not burned in living memory.',
+    areaHa: '12,000',
+    risk: 'High',
+    image: daguilar,
+  },
+  {
+    id: 'girraween',
+    name: 'Girraween National Park',
+    state: 'QLD',
+    year: 2019,
+    center: [-28.889, 151.945],
+    zoom: 14,
+    description: 'Granite-belt dry sclerophyll on the Queensland–NSW border. Record heat and zero humidity produced extreme fire behaviour across exposed rock slopes and stringybark forest.',
+    areaHa: '36,000',
+    risk: 'Catastrophic',
+    image: daguilar,
+  },
+  {
+    id: 'eungella',
+    name: 'Eungella National Park',
+    state: 'QLD',
+    year: 2018,
+    center: [-21.132, 148.491],
+    zoom: 14,
+    description: 'Tropical and subtropical rainforest on the Clarke Range inland from Mackay. Unprecedented fire penetration into wet sclerophyll driven by the longest recorded dry spell in the region.',
+    areaHa: '9,000',
+    risk: 'Extreme',
+    image: daguilar,
   },
 ];
 
