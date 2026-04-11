@@ -11,7 +11,7 @@
  * in useSimulation.js — nothing else changes.
  */
 
-export const GRID_SIZE = 100; // 100×100 cells over the 1×1km area → 10m per cell
+export const GRID_SIZE = 1000; // 1000×1000 cells over the 10×10km area → 10m per cell
 
 const TICK_MS       = 500;
 const BURN_DURATION = 14;   // ticks a cell burns before becoming ash

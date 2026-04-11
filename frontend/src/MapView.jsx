@@ -25,7 +25,7 @@ function FireLayer({ gridRef, burnAgeRef, scenario, windDir, windSpd }) {
   const layerRef = useRef(null);
 
   useEffect(() => {
-    const bounds = getBounds(scenario.center, 0.5);
+    const bounds = getBounds(scenario.center, 5);
     const layer  = new FireCanvasLayer(gridRef, burnAgeRef, bounds, GRID_SIZE);
     layerRef.current = layer;
     map.addLayer(layer);
@@ -119,7 +119,7 @@ function bearingLabel(deg) {
 
 export default function MapView({ scenario, onBack }) {
   const risk   = RISK_LEVELS[scenario.risk];
-  const bounds = useMemo(() => getBounds(scenario.center, 0.5), [scenario]);
+  const bounds = useMemo(() => getBounds(scenario.center, 5), [scenario]);
   const { gridRef, burnAgeRef, stats, status, setWind } = useSimulation(scenario);
 
   const [windDir, setWindDir] = useState(DEFAULT_WIND_DIR);
@@ -142,7 +142,7 @@ export default function MapView({ scenario, onBack }) {
         zoomControl={false}
         maxBounds={bounds}
         maxBoundsViscosity={1.0}
-        minZoom={15}
+        minZoom={13}
       >
         <TileLayer
           attribution="Esri, Maxar, Earthstar Geographics"
