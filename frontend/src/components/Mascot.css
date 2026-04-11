@@ -32,14 +32,21 @@
 .mascot-bubble-tail {
   position: absolute;
   bottom: -6px;
-  left: 50%;
-  transform: translateX(-50%) rotate(45deg);
+  left: 3rem; /* Center of w-24 mascot (48px) */
+  transform: rotate(45deg);
   width: 12px;
   height: 12px;
   background: rgba(3, 7, 18, 0.85); /* Matches bg-gray-950/85 */
   border-right: 1px solid rgba(55, 65, 81, 0.5); /* Matches border-gray-700/50 */
   border-bottom: 1px solid rgba(55, 65, 81, 0.5);
   z-index: -1;
+}
+
+/* Medium screens mascot width is w-32 (128px), so center is 64px (4rem) */
+@media (min-width: 768px) {
+  .mascot-bubble-tail {
+    left: 4rem;
+  }
 }
 
 /* Ensure the backdrop blur works well with the shadow */
