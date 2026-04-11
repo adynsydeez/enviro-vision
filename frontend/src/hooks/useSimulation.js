@@ -86,8 +86,8 @@ export function useSimulation(scenario) {
     return () => ws.close();
   }, [scenario]);
 
-  const interact = useCallback((tool, x, y) => {
-    wsRef.current?.send(JSON.stringify({ tool, x, y }));
+  const interact = useCallback((tool, payload) => {
+    wsRef.current?.send(JSON.stringify({ tool, ...payload }));
   }, []);
 
   const setWind = useCallback((dir, spd) => {

@@ -14,6 +14,7 @@ import VegetationCanvasLayer from './layers/VegetationCanvasLayer';
 import WindCanvasLayer from './layers/WindCanvasLayer';
 import ToolPalette from './components/ToolPalette';
 import MapClickHandler from './components/MapClickHandler';
+import ControlLineOverlay from './components/ControlLineOverlay';
 
 // Default wind matches the MockWebSocket constants
 const DEFAULT_WIND_DIR = 45;
@@ -259,11 +260,15 @@ export default function MapView({ scenario, onBack }) {
   const [effects, setEffects] = useState(true);
   const [showWindLayer, setShowWindLayer] = useState(false);
   const [activeTool,    setActiveTool]    = useState(null);
-  const [cooldownActive, setCooldownActive] = useState(false);
-  const cooldownUntil    = useRef(0);
-  const [cooldownEpoch, setCooldownEpoch] = useState(0);
-  const cooldownTimerRef = useRef(null);
+  const [cooldowns, setCooldowns] = useState({
+    water: { active: false, duration: 3, epoch: 0 },
+    line:  { active: false, duration: 5, epoch: 0 },
+  });
+  const cooldownUntil    = useRef({ water: 0, line: 0 });
+  const cooldownTimers   = useRef({ water: null, line: null });
+
   const activeToolRef    = useRef(null);
+  const [clPreviewCells, setClPreviewCells] = useState(null);
 
   const isFoliageActive = activeLayers.has('foliage');
   // Fire is suppressed whenever the foliage layer is on
@@ -275,9 +280,7 @@ export default function MapView({ scenario, onBack }) {
     if (id !== 'fire') {
       activeToolRef.current = null;
       setActiveTool(null);
-      setCooldownActive(false);
-      cooldownUntil.current = 0;
-      clearTimeout(cooldownTimerRef.current);
+      setClPreviewCells(null);
     }
   };
 
@@ -291,23 +294,40 @@ export default function MapView({ scenario, onBack }) {
     const isDeselecting = activeToolRef.current === id;
     activeToolRef.current = isDeselecting ? null : id;
     setActiveTool(activeToolRef.current);
-    if (isDeselecting) {
-      setCooldownActive(false);
-      cooldownUntil.current = 0;
-      clearTimeout(cooldownTimerRef.current);
-    }
+    setClPreviewCells(null);
   };
 
-  const handleWaterDrop = () => {
-    cooldownUntil.current = Date.now() + 3000;
-    setCooldownEpoch(e => e + 1);
-    setCooldownActive(true);
-    clearTimeout(cooldownTimerRef.current);
-    cooldownTimerRef.current = setTimeout(() => setCooldownActive(false), 3000);
+  const startCooldown = (toolId, durationMs) => {
+    cooldownUntil.current[toolId] = Date.now() + durationMs;
+    setCooldowns(prev => ({
+      ...prev,
+      [toolId]: {
+        active: true,
+        duration: durationMs / 1000,
+        epoch: prev[toolId].epoch + 1,
+      }
+    }));
+
+    clearTimeout(cooldownTimers.current[toolId]);
+    cooldownTimers.current[toolId] = setTimeout(() => {
+      setCooldowns(prev => ({
+        ...prev,
+        [toolId]: { ...prev[toolId], active: false }
+      }));
+    }, durationMs);
+  };
+
+  const handleWaterDrop = () => startCooldown('water', 3000);
+
+  const handleControlLineCommit = () => {
+    setClPreviewCells(null);
+    startCooldown('line', 5000);
   };
 
   useEffect(() => {
-    return () => clearTimeout(cooldownTimerRef.current);
+    return () => {
+      Object.values(cooldownTimers.current).forEach(clearTimeout);
+    };
   }, []);
 
   useEffect(() => {
@@ -315,9 +335,7 @@ export default function MapView({ scenario, onBack }) {
       if (e.key === 'Escape') {
         activeToolRef.current = null;
         setActiveTool(null);
-        setCooldownActive(false);
-        cooldownUntil.current = 0;
-        clearTimeout(cooldownTimerRef.current);
+        setClPreviewCells(null);
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -369,7 +387,15 @@ export default function MapView({ scenario, onBack }) {
           gridRef={gridRef}
           interact={interact}
           onWaterDrop={handleWaterDrop}
+          onControlLinePreview={setClPreviewCells}
+          onControlLineCommit={handleControlLineCommit}
         />
+        {isFireActive && (
+          <ControlLineOverlay
+            previewCells={clPreviewCells}
+            scenario={scenario}
+          />
+        )}
       </MapContainer>
 
       {/* Left panel — nav, scenario info, live stats */}
@@ -545,8 +571,7 @@ export default function MapView({ scenario, onBack }) {
       {isFireActive && (
         <ToolPalette
           activeTool={activeTool}
-          cooldownActive={cooldownActive}
-          cooldownEpoch={cooldownEpoch}
+          cooldowns={cooldowns}
           onToolSelect={handleToolSelect}
         />
       )}

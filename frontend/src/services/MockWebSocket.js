@@ -230,12 +230,11 @@ export class MockWebSocket {
     return changes;
   }
 
-  _handleInteraction({ tool, x, y }) {
-    const gx = Math.round(x), gy = Math.round(y);
-    if (gx < 0 || gx >= GRID_SIZE || gy < 0 || gy >= GRID_SIZE) return;
-
+  _handleInteraction({ tool, x, y, cells }) {
     if (tool === 'water') {
-      // Apply 5×5 circular water drop (all cells within WATER_RADIUS distance)
+      const gx = Math.round(x), gy = Math.round(y);
+      if (gx < 0 || gx >= GRID_SIZE || gy < 0 || gy >= GRID_SIZE) return;
+      // Apply circular water drop (all cells within WATER_RADIUS distance)
       const changes = [];
       for (let dy = -WATER_RADIUS; dy <= WATER_RADIUS; dy++) {
         for (let dx = -WATER_RADIUS; dx <= WATER_RADIUS; dx++) {
@@ -257,12 +256,32 @@ export class MockWebSocket {
       return;
     }
 
+    if (tool === 'control_line') {
+      // Accepts a cells array [{x, y}] for a multi-cell line
+      const cellList = cells ?? [];
+      const changes = [];
+      for (const { x: cx, y: cy } of cellList) {
+        const gcx = Math.max(0, Math.min(GRID_SIZE - 1, Math.round(cx)));
+        const gcy = Math.max(0, Math.min(GRID_SIZE - 1, Math.round(cy)));
+        const i = this._i(gcx, gcy);
+        if (this._grid[i] !== 3) {
+          this._grid[i] = 3; // control lines never change after being set
+          changes.push({ x: gcx, y: gcy, s: 3 });
+        }
+      }
+      if (changes.length) {
+        this._emit({ type: 'TICK_UPDATE', changes, stats: this._calcStats() });
+      }
+      return;
+    }
+
+    const gx = Math.round(x), gy = Math.round(y);
+    if (gx < 0 || gx >= GRID_SIZE || gy < 0 || gy >= GRID_SIZE) return;
     const i = this._i(gx, gy);
     const cur = this._grid[i];
     let next = cur;
 
-    if (tool === 'control_line' && cur === 0) next = 3;
-    if (tool === 'backburn'     && cur === 0) next = 1;
+    if (tool === 'backburn' && cur === 0) next = 1;
 
     if (next === cur) return;
     this._grid[i] = next;

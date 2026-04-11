@@ -2,53 +2,61 @@
 import { Droplets, Construction, Flame, AlertTriangle } from 'lucide-react';
 
 const TOOLS = [
-  { id: 'water',   label: 'Water',    Icon: Droplets,       locked: false },
-  { id: 'line',    label: 'Control',  Icon: Construction,   locked: true  },
-  { id: 'burn',    label: 'Backburn', Icon: Flame,          locked: true  },
-  { id: 'evac',    label: 'Evac',     Icon: AlertTriangle,  locked: true  },
+  { id: 'water',   label: 'Water',    Icon: Droplets,      locked: false },
+  { id: 'line',    label: 'Control',  Icon: Construction,  locked: false },
+  { id: 'burn',    label: 'Backburn', Icon: Flame,         locked: true  },
+  { id: 'evac',    label: 'Evac',     Icon: AlertTriangle, locked: true  },
 ];
 
-// SVG is 77×77 (72px button + 2.5px bleed on each side) so r=36 sits just inside the border
-const CIRCUMFERENCE = 2 * Math.PI * 36;
-
-function CooldownRing({ active }) {
+function CooldownRing({ active, duration, size }) {
   if (!active) return null;
+  const strokeWidth = size > 60 ? 3 : 2;
+  const r           = (size - strokeWidth) / 2;
+  const center      = size / 2;
+  const circ        = 2 * Math.PI * r;
+
   return (
     <svg
-      width="77"
-      height="77"
-      viewBox="0 0 77 77"
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
       style={{
         position: 'absolute',
-        top: -4.5,
-        left: -4.5,
+        top: -2.5,
+        left: -2.5,
         transform: 'rotate(-90deg)',
         pointerEvents: 'none',
+        overflow: 'visible',
+        '--circ': circ,
       }}
     >
       <circle
-        cx="38.5"
-        cy="38.5"
-        r="36"
+        cx={center}
+        cy={center}
+        r={r}
         fill="none"
         stroke="#22d3ee"
-        strokeWidth="3"
-        strokeDasharray={CIRCUMFERENCE}
+        strokeWidth={strokeWidth}
+        strokeDasharray={circ}
         strokeDashoffset="0"
         strokeLinecap="round"
-        style={{ animation: 'cooldown-ring 3s linear forwards' }}
+        style={{ animation: `cooldown-ring ${duration}s linear forwards` }}
       />
     </svg>
   );
 }
 
-export default function ToolPalette({ activeTool, cooldownActive, cooldownEpoch, onToolSelect }) {
+export default function ToolPalette({
+  activeTool,
+  cooldowns,
+  onToolSelect,
+}) {
   return (
     <>
       <style>{`
         @keyframes cooldown-ring {
           from { stroke-dashoffset: 0; }
-          to   { stroke-dashoffset: ${CIRCUMFERENCE}; }
+          to   { stroke-dashoffset: var(--circ); }
         }
       `}</style>
 
@@ -56,7 +64,8 @@ export default function ToolPalette({ activeTool, cooldownActive, cooldownEpoch,
         {TOOLS.map(({ id, label, Icon: _icon, locked }) => {
           const Icon = _icon;
           const isActive = activeTool === id;
-          const isCoolingDown = isActive && cooldownActive;
+          const cd       = cooldowns[id] || { active: false, duration: 0, epoch: 0 };
+          const size     = isActive ? 72 : 56;
 
           return (
             <button
@@ -70,8 +79,8 @@ export default function ToolPalette({ activeTool, cooldownActive, cooldownEpoch,
               <div
                 style={{
                   position: 'relative',
-                  width:  isActive ? 72 : 56,
-                  height: isActive ? 72 : 56,
+                  width:  size,
+                  height: size,
                   borderRadius: '50%',
                   background: isActive
                     ? 'rgba(30,64,175,1)'
@@ -82,7 +91,7 @@ export default function ToolPalette({ activeTool, cooldownActive, cooldownEpoch,
                   boxShadow: isActive
                     ? '0 0 0 4px rgba(59,130,246,.2), 0 4px 16px rgba(59,130,246,.4)'
                     : 'none',
-                  opacity: locked ? 0.35 : isActive ? 1 : 0.6,
+                  opacity: locked ? 0.35 : (isActive || cd.active) ? 1 : 0.6,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -91,9 +100,14 @@ export default function ToolPalette({ activeTool, cooldownActive, cooldownEpoch,
               >
                 <Icon
                   size={isActive ? 28 : 22}
-                  color={isActive ? '#bfdbfe' : '#9ca3af'}
+                  color={isActive ? '#bfdbfe' : (cd.active ? '#93c5fd' : '#9ca3af')}
                 />
-                <CooldownRing key={cooldownEpoch} active={isCoolingDown} />
+                <CooldownRing
+                  key={cd.epoch}
+                  active={cd.active}
+                  duration={cd.duration}
+                  size={size}
+                />
               </div>
               <span
                 style={{
@@ -101,7 +115,7 @@ export default function ToolPalette({ activeTool, cooldownActive, cooldownEpoch,
                   fontWeight: 700,
                   letterSpacing: '.05em',
                   textTransform: 'uppercase',
-                  color: isActive ? '#bfdbfe' : locked ? '#4b5563' : '#6b7280',
+                  color: locked ? '#4b5563' : '#ffffff',
                   textShadow: '0 1px 4px rgba(0,0,0,0.8)',
                   userSelect: 'none',
                 }}
