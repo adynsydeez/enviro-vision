@@ -2,7 +2,9 @@
 
 ## 1. Problem Statement
 
-Wildfire spread is rapid and unpredictable, making real-world training for firefighters dangerous and expensive. This platform provides a low-risk, high-fidelity environment to train for wildfire spread scenarios across Australia using simulated data.
+Wildfire spread is rapid and unpredictable, making real-world training dangerous and expensive. FireCommander provides a low-risk, high-fidelity environment to learn wildfire spread scenarios across Australia using simulated data.
+
+> **Target Audience:** FireCommander is primarily an **educational tool for kids, teens, and young adults** — not professional firefighters. The goal is to build awareness, environmental literacy, and basic tactical thinking around wildfire behaviour. Complexity and UI should reflect this: approachable, engaging, and game-like while remaining grounded in realistic fire science.
 
 ## 2. Goals
 
