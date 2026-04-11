@@ -1,5 +1,3 @@
-import mascotImg from '../assets/mascot.png';
-
 export default function MascotBubble({ text, isVisible = true }) {
   if (!isVisible) return null;
   
@@ -10,7 +8,7 @@ export default function MascotBubble({ text, isVisible = true }) {
         {/* Bubble Tail */}
         <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-white border-r-2 border-b-2 border-orange-100 rotate-45" />
       </div>
-      <img src={mascotImg} alt="Mascot" className="w-32 h-32 object-contain drop-shadow-2xl" />
+      <img src="/mascot-ingame.png" alt="Mascot" className="w-48 h-48 object-contain drop-shadow-2xl" />
     </div>
   );
 }
