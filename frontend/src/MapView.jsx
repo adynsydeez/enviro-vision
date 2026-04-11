@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
-import { ArrowLeft, Flame, MapPin, Zap, Shield, Sparkles, Play, Pause, TreeDeciduous } from 'lucide-react';
+import { ArrowLeft, Flame, MapPin, Zap, Shield, Sparkles, Play, Pause, TreeDeciduous, Wind } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { RISK_LEVELS } from './data/scenarios';
@@ -11,6 +11,7 @@ import { GRID_SIZE } from './services/MockWebSocket';
 import { VEGETATION_TYPES } from './data/vegetation-mapping';
 import FireCanvasLayer from './layers/FireCanvasLayer';
 import VegetationCanvasLayer from './layers/VegetationCanvasLayer';
+import WindCanvasLayer from './layers/WindCanvasLayer';
 
 // Default wind matches the MockWebSocket constants
 const DEFAULT_WIND_DIR = 45;
@@ -81,6 +82,27 @@ function VegetationLayer({ vegGridRef, scenario }) {
     map.addLayer(layer);
     return () => map.removeLayer(layer);
   }, [map, vegGridRef, scenario]);
+
+  return null;
+}
+
+function WindLayer({ windDir, windSpd }) {
+  const map      = useMap();
+  const layerRef = useRef(null);
+
+  useEffect(() => {
+    const layer = new WindCanvasLayer();
+    layerRef.current = layer;
+    map.addLayer(layer);
+    return () => {
+      map.removeLayer(layer);
+      layerRef.current = null;
+    };
+  }, [map]);
+
+  useEffect(() => {
+    layerRef.current?.setWind(windDir, windSpd);
+  }, [windDir, windSpd]);
 
   return null;
 }
@@ -233,6 +255,7 @@ export default function MapView({ scenario, onBack }) {
   const [windDir, setWindDir] = useState(DEFAULT_WIND_DIR);
   const [windSpd, setWindSpd] = useState(DEFAULT_WIND_SPD);
   const [effects, setEffects] = useState(true);
+  const [showWindLayer, setShowWindLayer] = useState(false);
 
   const isFoliageActive = activeLayers.has('foliage');
   // Fire is suppressed whenever the foliage layer is on
@@ -282,6 +305,9 @@ export default function MapView({ scenario, onBack }) {
             <VegetationLayer vegGridRef={vegGridRef} scenario={scenario} />
             <FoliageTooltip  vegGridRef={vegGridRef} scenario={scenario} />
           </>
+        )}
+        {showWindLayer && (
+          <WindLayer windDir={windDir} windSpd={windSpd} />
         )}
       </MapContainer>
 
@@ -411,7 +437,21 @@ export default function MapView({ scenario, onBack }) {
 
         {/* Wind controls */}
         <div className="bg-gray-950/85 border border-gray-700/50 rounded-xl backdrop-blur-md p-4 w-64">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Wind</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Wind</p>
+            <button
+              onClick={() => setShowWindLayer(v => !v)}
+              title={showWindLayer ? 'Hide wind layer' : 'Show wind layer'}
+              className={`flex items-center gap-1.5 border text-xs font-semibold px-2 py-1 rounded transition-colors cursor-pointer ${
+                showWindLayer
+                  ? 'bg-cyan-500 border-cyan-400 text-white hover:bg-cyan-400'
+                  : 'bg-gray-900 border-gray-700 text-gray-500 hover:bg-gray-800'
+              }`}
+            >
+              <Wind size={11} />
+              {showWindLayer ? 'On' : 'Off'}
+            </button>
+          </div>
           <div className="flex items-start gap-3">
             <WindCompass windDir={windDir} onChange={dir => handleWindChange(dir, windSpd)} />
             <div className="flex-1 flex flex-col gap-3 pt-0.5">
