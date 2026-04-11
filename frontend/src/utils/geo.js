@@ -8,3 +8,16 @@ export function getBounds(center, radiusKm = 5) {
     [lat + latDelta, lng + lngDelta],
   ];
 }
+
+// Converts a Leaflet LatLng object to grid cell coordinates.
+// bounds = [[swLat, swLng], [neLat, neLng]] (from getBounds)
+// Returns { x, y } clamped to [0, gridSize - 1].
+export function latlngToCell(latlng, bounds, gridSize) {
+  const [[swLat, swLng], [neLat, neLng]] = bounds;
+  const x = Math.floor(((latlng.lng - swLng) / (neLng - swLng)) * gridSize);
+  const y = Math.floor(((neLat - latlng.lat) / (neLat - swLat)) * gridSize);
+  return {
+    x: Math.max(0, Math.min(gridSize - 1, x)),
+    y: Math.max(0, Math.min(gridSize - 1, y)),
+  };
+}
