@@ -115,7 +115,7 @@ const FireCanvasLayer = L.Layer.extend({
       const comma = key.indexOf(',');
       const x = +key.slice(0, comma);
       const y = +key.slice(comma + 1);
-      ctx.fillStyle = '#1c0800';
+      ctx.fillStyle = 'rgba(28,8,0,0.7)';
       ctx.fillRect(nw.x + x * cellW, nw.y + y * cellH, cellW + 0.5, cellH + 0.5);
     }
 
@@ -135,22 +135,22 @@ const FireCanvasLayer = L.Layer.extend({
         const t   = Math.min(age / 14, 1);
         const g   = Math.floor(140 * (1 - t) + 20 * t);
         if (this._effects) {
-          const flicker = 0.72 + Math.random() * 0.28;
-          ctx.shadowBlur  = 14 * flicker;
-          ctx.shadowColor = `rgba(249,${g},22,${flicker})`;
+          const flicker = 0.5 + Math.random() * 0.2;
+          ctx.shadowBlur  = 14 * (flicker + 0.3);
+          ctx.shadowColor = `rgba(249,${g},22,${flicker + 0.2})`;
           ctx.fillStyle   = `rgba(249,${g},22,${flicker})`;
           ctx.fillRect(px, py, cellW + 0.5, cellH + 0.5);
           ctx.shadowBlur  = 0;
           burningCells.push({ px: px + cellW * 0.5, py: py + cellH * 0.5 });
         } else {
-          ctx.fillStyle = `rgb(249,${g},22)`;
+          ctx.fillStyle = `rgba(249,${g},22,0.65)`;
           ctx.fillRect(px, py, cellW + 0.5, cellH + 0.5);
         }
       } else if (state === 3) {
-        ctx.fillStyle = 'rgba(59,130,246,0.85)';
+        ctx.fillStyle = 'rgba(59,130,246,0.65)';
         ctx.fillRect(px, py, cellW + 0.5, cellH + 0.5);
       } else if (state === 4) {
-        ctx.fillStyle = 'rgba(14,165,233,0.85)';
+        ctx.fillStyle = 'rgba(14,165,233,0.65)';
         ctx.fillRect(px, py, cellW + 0.5, cellH + 0.5);
       }
     }
