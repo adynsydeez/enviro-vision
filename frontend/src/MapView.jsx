@@ -133,8 +133,10 @@ export default function MapView({ scenario, onBack }) {
   const [effects, setEffects] = useState(true);
   const [activeTool,    setActiveTool]    = useState(null);
   const [cooldownActive, setCooldownActive] = useState(false);
-  const cooldownUntil = useRef(0);
-  const cooldownEpoch = useRef(0);
+  const cooldownUntil    = useRef(0);
+  const cooldownEpoch    = useRef(0);
+  const cooldownTimerRef = useRef(null);
+  const activeToolRef    = useRef(null);
 
   const handleWindChange = (dir, spd) => {
     setWindDir(dir);
@@ -143,23 +145,27 @@ export default function MapView({ scenario, onBack }) {
   };
 
   const handleToolSelect = (id) => {
-    setActiveTool(prev => {
-      if (prev === id) {
-        // Deselect: reset cooldown immediately
-        setCooldownActive(false);
-        cooldownUntil.current = 0;
-        return null;
-      }
-      return id;
-    });
+    const isDeselecting = activeToolRef.current === id;
+    activeToolRef.current = isDeselecting ? null : id;
+    setActiveTool(activeToolRef.current);
+    if (isDeselecting) {
+      setCooldownActive(false);
+      cooldownUntil.current = 0;
+      clearTimeout(cooldownTimerRef.current);
+    }
   };
 
   const handleWaterDrop = () => {
     cooldownUntil.current = Date.now() + 3000;
     cooldownEpoch.current += 1;
     setCooldownActive(true);
-    setTimeout(() => setCooldownActive(false), 3000);
+    clearTimeout(cooldownTimerRef.current);
+    cooldownTimerRef.current = setTimeout(() => setCooldownActive(false), 3000);
   };
+
+  useEffect(() => {
+    return () => clearTimeout(cooldownTimerRef.current);
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -167,6 +173,7 @@ export default function MapView({ scenario, onBack }) {
         setActiveTool(null);
         setCooldownActive(false);
         cooldownUntil.current = 0;
+        clearTimeout(cooldownTimerRef.current);
       }
     };
     window.addEventListener('keydown', onKeyDown);

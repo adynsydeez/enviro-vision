@@ -11,11 +11,10 @@ const TOOLS = [
 // SVG circle with r=24 in a 56×56 viewBox → circumference ≈ 150.8
 const CIRCUMFERENCE = 2 * Math.PI * 24;
 
-function CooldownRing({ active, epoch }) {
+function CooldownRing({ active }) {
   if (!active) return null;
   return (
     <svg
-      key={epoch}
       width="56"
       height="56"
       viewBox="0 0 56 56"
@@ -93,7 +92,7 @@ export default function ToolPalette({ activeTool, cooldownActive, cooldownEpoch,
                   size={isActive ? 22 : 18}
                   color={isActive ? '#bfdbfe' : '#9ca3af'}
                 />
-                <CooldownRing active={isCoolingDown} epoch={cooldownEpoch} />
+                <CooldownRing key={cooldownEpoch} active={isCoolingDown} />
               </div>
               <span
                 style={{
