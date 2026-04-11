@@ -1,9 +1,13 @@
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function App() {
   const zoomRef = useRef(20);
+
+  const blueMountainsCoords = [];
+
+  const [mapCenter, setMapCentre] = useState();
 
   useEffect(() => {
     console.log("konnichiwassup");
@@ -24,6 +28,7 @@ function App() {
 
   return (
     <>
+      <h1>wassup</h1>
       <div style={{ height: "100vh", width: "100%" }}>
         <MapContainer
           id="container"
