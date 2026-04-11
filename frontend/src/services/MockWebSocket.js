@@ -11,7 +11,7 @@
  * in useSimulation.js — nothing else changes.
  */
 
-export const GRID_SIZE = 50; // 50×50 cells over the 10×10km area → 200m per cell
+export const GRID_SIZE = 100; // 100×100 cells over the 1×1km area → 10m per cell
 
 const TICK_MS       = 500;
 const BURN_DURATION = 14;   // ticks a cell burns before becoming ash
@@ -187,7 +187,7 @@ export class MockWebSocket {
       if (s === 2) burned++;
     }
     const total    = GRID_SIZE * GRID_SIZE;
-    const burnedHa = +((burned / total) * 100).toFixed(1); // % of area as ha proxy
+    const burnedHa = +(burned * 0.01).toFixed(2); // 1 cell = 10×10m = 0.01 ha
     const score    = Math.max(0, 100 - Math.floor((burned / total) * 150));
     return { burning, burned, burnedHa, score, tick: this._tick,
              windDir: this._windDir, windSpd: this._windSpd };
