@@ -13,9 +13,11 @@ for (const [id, veg] of Object.entries(VEGETATION_TYPES)) {
 }
 
 export default BaseCanvasLayer.extend({
-  initialize(vegGridRef, bounds, gridSize, activeGroups = null) {
+  initialize(vegGridRef, bounds, gridSize, scenarioId, activeGroups = null) {
     BaseCanvasLayer.prototype.initialize.call(this, bounds, gridSize, { animated: false });
     this._vegGridRef   = vegGridRef;
+    this._gridSize     = gridSize;
+    this._scenarioId   = scenarioId;
     this._activeGroups = activeGroups;
     this._offscreen    = null; // cached pre-rendered canvas
   },
@@ -28,6 +30,9 @@ export default BaseCanvasLayer.extend({
 
   onAdd(map) {
     BaseCanvasLayer.prototype.onAdd.call(this, map);
+    if (!this._vegGridRef.current) {
+      this._loadFromCSV();
+    }
     map.on('moveend zoomend', this.redraw, this);
   },
 
@@ -37,10 +42,51 @@ export default BaseCanvasLayer.extend({
   },
 
   // Build a gridSize×gridSize offscreen canvas from the veg grid — done once.
+  async _loadFromCSV() {
+    try {
+      const response = await fetch(`/data/cropped_fuel_types_${this._scenarioId}.csv`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const text = await response.text();
+      const lines = text.trim().split('\n').slice(1);
+      
+      const gs = this._gridSize;
+      const grid = new Uint8Array(gs * gs);
+      
+      // Mapping lon/lat to grid cells requires knowing the bounds.
+      const leafletBounds = this._bounds;
+      const sw = leafletBounds.getSouthWest();
+      const ne = leafletBounds.getNorthEast();
+      
+      for (const line of lines) {
+        const parts = line.split(',');
+        if (parts.length < 3) continue;
+        const [lon, lat, code] = parts;
+        const llon = parseFloat(lon);
+        const llat = parseFloat(lat);
+        const ccode = parseInt(code);
+        
+        const gx = Math.floor(((llon - sw.lng) / (ne.lng - sw.lng)) * gs);
+        const gy = Math.floor(((ne.lat - llat) / (ne.lat - sw.lat)) * gs);
+        
+        if (gx >= 0 && gx < gs && gy >= 0 && gy < gs) {
+          grid[gy * gs + gx] = ccode;
+        }
+      }
+      
+      this._vegGridRef.current = grid;
+      this._offscreen = this._buildOffscreen();
+      this.redraw();
+    } catch (err) {
+      console.error("Failed to load vegetation from CSV", err);
+    }
+  },
+
+  // Build a gridSize×gridSize offscreen canvas from the veg grid — done once.
   _buildOffscreen() {
     const grid = this._vegGridRef.current;
-    if (!grid) return null;
-    const gs  = this._gridSize;
+    const gs = parseInt(this._gridSize);
+    if (!grid || isNaN(gs) || gs <= 0) return null;
+
     const oc  = document.createElement('canvas');
     oc.width  = gs;
     oc.height = gs;

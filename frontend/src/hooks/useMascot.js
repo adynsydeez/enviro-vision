@@ -13,8 +13,22 @@ export const useMascot = (scenario) => {
     scenario?.introMessages?.[0] || ''
   );
   const [showBubble, setShowBubble] = useState(!!(scenario?.introMessages?.[0]));
+  const [gameStatus, setGameStatus] = useState(null); // 'victory' | 'defeat' | null
   
   const timeoutRef = useRef(null);
+
+  /**
+   * Trigger the end of game state.
+   */
+  const triggerGameOver = useCallback((status) => {
+    setGameStatus(status);
+    const dialogue = scenario?.mascotDialogue?.[status];
+    if (dialogue && dialogue.length > 0) {
+      const randomMsg = dialogue[Math.floor(Math.random() * dialogue.length)];
+      // Show end game message persistently (0 duration)
+      say(randomMsg, 0);
+    }
+  }, [scenario, say]);
 
   /**
    * Clear the current message bubble and any active timeouts.
@@ -90,8 +104,10 @@ export const useMascot = (scenario) => {
     isIntroActive,
     currentMessage,
     showBubble,
+    gameStatus,
     nextIntro,
     say,
-    triggerRandom
-  }), [introIndex, isIntroActive, currentMessage, showBubble, nextIntro, say, triggerRandom]);
+    triggerRandom,
+    triggerGameOver
+  }), [introIndex, isIntroActive, currentMessage, showBubble, gameStatus, nextIntro, say, triggerRandom, triggerGameOver]);
 };

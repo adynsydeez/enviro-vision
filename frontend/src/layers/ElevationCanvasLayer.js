@@ -1,28 +1,57 @@
 import BaseCanvasLayer from "./BaseCanvasLayer";
 
 const ElevationCanvasLayer = BaseCanvasLayer.extend({
-  initialize(elevationGridRef, bounds, gridSize) {
+  initialize(elevationGridRef, bounds, gridSize, scenarioId) {
     BaseCanvasLayer.prototype.initialize.call(this, bounds, gridSize, {
       animated: false,
     });
     this._elevationGridRef = elevationGridRef;
+    this._gridSize = gridSize;
+    this._scenarioId = scenarioId;
   },
 
-  _generateElevationGrid() {
-    const gs = this._gridSize;
-    const grid = new Float32Array(gs * gs); // flat array, like veg layer
-    for (let i = 0; i < gs; i++) {
-      for (let j = 0; j < gs; j++) {
-        const base = 200 + Math.sin(i / 20) * 200 + Math.cos(j / 15) * 150;
-        const noise = Math.sin(42 + i * 73.156 + j * 191.999) * 50;
-        grid[i * gs + j] = Math.max(200, Math.min(950, base + noise));
+  async _loadFromCSV() {
+    try {
+      const response = await fetch(`/data/cropped_elevation_${this._scenarioId}.csv`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const text = await response.text();
+      const lines = text.trim().split('\n').slice(1);
+      
+      const gs = this._gridSize;
+      const grid = new Float32Array(gs * gs);
+      
+      const leafletBounds = this._bounds;
+      const sw = leafletBounds.getSouthWest();
+      const ne = leafletBounds.getNorthEast();
+      
+      for (const line of lines) {
+        const parts = line.split(',');
+        if (parts.length < 3) continue;
+        const [lon, lat, elev] = parts;
+        const llon = parseFloat(lon);
+        const llat = parseFloat(lat);
+        const eelev = parseFloat(elev);
+        
+        const gx = Math.floor(((llon - sw.lng) / (ne.lng - sw.lng)) * gs);
+        const gy = Math.floor(((ne.lat - llat) / (ne.lat - sw.lat)) * gs);
+        
+        if (gx >= 0 && gx < gs && gy >= 0 && gy < gs) {
+          grid[gy * gs + gx] = eelev;
+        }
       }
+      
+      this._elevationGridRef.current = grid;
+      this.redraw();
+    } catch (err) {
+      console.error("Failed to load elevation from CSV", err);
     }
-    this._elevationGridRef.current = grid;
   },
 
   onAdd(map) {
     BaseCanvasLayer.prototype.onAdd.call(this, map);
+    if (!this._elevationGridRef.current) {
+      this._loadFromCSV();
+    }
     map.on("moveend zoomend", this.redraw, this);
   },
 
@@ -44,7 +73,9 @@ const ElevationCanvasLayer = BaseCanvasLayer.extend({
 
     const ctx = this._ctx;
     const map = this._map;
-    const gs = this._gridSize;
+    const gs = parseInt(this._gridSize);
+    if (isNaN(gs) || gs <= 0) return;
+
     const grid = this._elevationGridRef.current;
 
     ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);

@@ -2,18 +2,15 @@
 import { useEffect, useRef } from 'react';
 import { useMapEvents } from 'react-leaflet';
 import { getBounds, latlngToCell } from '../utils/geo';
-import { GRID_SIZE } from '../services/MockWebSocket';
 
-const WATER_RADIUS   = 3;  // must match MockWebSocket constant
-const MAX_LINE_CELLS = 30; // max length in cells along longest dimension
-const HALF_THICK     = 1.2; // roughly 3 cells wide, ensures solid diagonals
+const WATER_RADIUS   = 3;  
+const EVAC_RADIUS    = 5;
+const MAX_LINE_CELLS = 30; 
+const HALF_THICK     = 1.2; 
 
 // Returns all grid cells covered by a solid line from (x0,y0) to (x1,y1).
-// Uses distance-to-segment rasterisation so diagonal lines fill solidly.
-// Clamps the end point so the segment is at most MAX_LINE_CELLS long.
-function getLineCells(x0, y0, x1, y1) {
+function getLineCells(x0, y0, x1, y1, gridSize) {
   const dx = x1 - x0, dy = y1 - y0;
-  // Use Chebyshev distance (max of dx/dy) for the limit so it's 30 cells in any dir
   const distMax = Math.max(Math.abs(dx), Math.abs(dy));
 
   let ex = x1, ey = y1;
@@ -28,9 +25,9 @@ function getLineCells(x0, y0, x1, y1) {
 
   const pad  = 2;
   const minX = Math.max(0, Math.min(x0, ex) - pad);
-  const maxX = Math.min(GRID_SIZE - 1, Math.max(x0, ex) + pad);
+  const maxX = Math.min(gridSize - 1, Math.max(x0, ex) + pad);
   const minY = Math.max(0, Math.min(y0, ey) - pad);
-  const maxY = Math.min(GRID_SIZE - 1, Math.max(y0, ey) + pad);
+  const maxY = Math.min(gridSize - 1, Math.max(y0, ey) + pad);
 
   const cells = [];
   for (let y = minY; y <= maxY; y++) {
@@ -48,91 +45,77 @@ function getLineCells(x0, y0, x1, y1) {
   return cells;
 }
 
-// ─── Component ─────────────────────────────────────────────────────────────────
 export default function MapClickHandler({
   scenario,
   activeTool,
   cooldownUntil,
   gridRef,
+  gridSize,
   interact,
   onWaterDrop,
   onControlLinePreview,
   onControlLineCommit,
 }) {
-  const clStartRef = useRef(null); // {x, y} grid coords of the first click
+  const startRef = useRef(null);
 
   const map = useMapEvents({
     click(e) {
       const bounds = getBounds(scenario.center, 5);
 
-      // ── Water drop ──────────────────────────────────────────────────────────
       if (activeTool === 'water') {
         if (Date.now() < (cooldownUntil.current?.water ?? 0)) return;
-        const { x, y } = latlngToCell(e.latlng, bounds, GRID_SIZE);
-
-        // Optimistic 5×5 circular water drop — mirrors MockWebSocket._handleInteraction
-        for (let dy = -WATER_RADIUS; dy <= WATER_RADIUS; dy++) {
-          for (let dx = -WATER_RADIUS; dx <= WATER_RADIUS; dx++) {
-            if (dx * dx + dy * dy > WATER_RADIUS * WATER_RADIUS) continue;
-            const cx = Math.max(0, Math.min(GRID_SIZE - 1, x + dx));
-            const cy = Math.max(0, Math.min(GRID_SIZE - 1, y + dy));
-            const key = `${cx},${cy}`;
-            const cur = gridRef.current.get(key) ?? 0;
-            if (cur === 0 || cur === 1) gridRef.current.set(key, 4);
-          }
-        }
+        const { x, y } = latlngToCell(e.latlng, bounds, gridSize);
         interact('water', { x, y });
         onWaterDrop();
         return;
       }
 
-      // ── Control line (two-click) ────────────────────────────────────────────
-      if (activeTool === 'line') {
-        const { x, y } = latlngToCell(e.latlng, bounds, GRID_SIZE);
+      if (activeTool === 'evac') {
+        if (Date.now() < (cooldownUntil.current?.evac ?? 0)) return;
+        const { x, y } = latlngToCell(e.latlng, bounds, gridSize);
+        interact('evac', { x, y });
+        onControlLineCommit('evac'); // Reuse commit for cooldown
+        return;
+      }
 
-        if (!clStartRef.current) {
-          // Phase 1: record start
-          clStartRef.current = { x, y };
-          // Seed the preview with the single start point so the overlay appears
-          onControlLinePreview(getLineCells(x, y, x, y));
+      if (activeTool === 'line' || activeTool === 'backburn') {
+        const { x, y } = latlngToCell(e.latlng, bounds, gridSize);
+
+        if (!startRef.current) {
+          startRef.current = { x, y };
+          onControlLinePreview(getLineCells(x, y, x, y, gridSize));
         } else {
-          // Phase 2: commit — check cooldown before placing
-          if (Date.now() < (cooldownUntil.current?.line ?? 0)) return;
-          const cells = getLineCells(clStartRef.current.x, clStartRef.current.y, x, y);
-
-          // Optimistic render: write state 3 directly into the grid
-          for (const { x: cx, y: cy } of cells) {
-            const key = `${cx},${cy}`;
-            if ((gridRef.current.get(key) ?? 0) === 0) {
-              gridRef.current.set(key, 3);
-            }
-          }
-
-          interact('control_line', { cells });
-          clStartRef.current = null;
+          if (Date.now() < (cooldownUntil.current?.[activeTool] ?? 0)) return;
+          
+          interact(activeTool, { 
+            x0: startRef.current.x, 
+            y0: startRef.current.y, 
+            x1: x, 
+            y1: y 
+          });
+          
+          startRef.current = null;
           onControlLinePreview(null);
-          onControlLineCommit();
+          onControlLineCommit(activeTool);
         }
       }
     },
 
     mousemove(e) {
-      if (activeTool !== 'line' || !clStartRef.current) return;
+      if ((activeTool !== 'line' && activeTool !== 'backburn') || !startRef.current) return;
       const bounds = getBounds(scenario.center, 5);
-      const { x, y } = latlngToCell(e.latlng, bounds, GRID_SIZE);
-      onControlLinePreview(getLineCells(clStartRef.current.x, clStartRef.current.y, x, y));
+      const { x, y } = latlngToCell(e.latlng, bounds, gridSize);
+      onControlLinePreview(getLineCells(startRef.current.x, startRef.current.y, x, y, gridSize));
     },
   });
 
-  // Clear pending start when the tool is deselected / changed
   useEffect(() => {
-    if (activeTool !== 'line') {
-      clStartRef.current = null;
+    if (activeTool !== 'line' && activeTool !== 'backburn') {
+      startRef.current = null;
       onControlLinePreview?.(null);
     }
-  }, [activeTool]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeTool, onControlLinePreview]);
 
-  // Crosshair cursor while a tool is armed
   useEffect(() => {
     const container = map.getContainer();
     container.style.cursor = activeTool ? 'crosshair' : '';

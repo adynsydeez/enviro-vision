@@ -11,3 +11,6 @@ pyproj
 scipy
 python-multipart
 websockets
+anthropic
+python-dotenv
+pydantic

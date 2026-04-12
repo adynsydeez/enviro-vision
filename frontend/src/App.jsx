@@ -12,12 +12,19 @@ export default function App() {
     setView('home');
   };
 
-  if (scenario) {
-    return <MapView key={scenario.id} scenario={scenario} onBack={handleBack} />;
+  if (scenario && view !== 'quiz') {
+    return (
+      <MapView 
+        key={scenario.id} 
+        scenario={scenario} 
+        onBack={handleBack}
+        onQuiz={() => setView('quiz')}
+      />
+    );
   }
   
   if (view === 'quiz') {
-    return <QuizPage onBack={() => setView('home')} />;
+    return <QuizPage onBack={() => setView('home')} scenarioId={scenario?.id} />;
   }
 
   return (

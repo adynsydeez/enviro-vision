@@ -9,7 +9,7 @@ import io
 import os
 from shapely.geometry import box, Point
 
-def process_fuel(origin_lon, origin_lat, size_m):
+def process_fuel(origin_lon, origin_lat, size_m, scenario_id="default"):
     """
     Processes fuel classification data for a specific area.
     Returns the path to the generated CSV.
@@ -97,7 +97,12 @@ def process_fuel(origin_lon, origin_lat, size_m):
     df["fuel_type_label"] = df["fuel_type_code"].apply(lambda x: bfc_labels.get(x, ("Unknown", 0.5))[0])
     df["flammability"] = df["fuel_type_code"].apply(lambda x: bfc_labels.get(x, ("Unknown", 0.5))[1])
 
-    output_path = os.path.join(output_data_dir, "cropped_fuel_types.csv")
+    output_path = os.path.join(output_data_dir, f"cropped_fuel_types_{scenario_id}.csv")
+    
+    if os.path.exists(output_path):
+        print(f"Skipping fuel processing: {output_path} already exists.")
+        return output_path
+
     df.to_csv(output_path, index=False)
     print(f"Fuel processing complete: {len(df)} pixels.")
     return output_path
@@ -108,6 +113,7 @@ if __name__ == "__main__":
         lon = float(input("Enter origin longitude (e.g., 153.02): ") or "153.02")
         lat = float(input("Enter origin latitude (e.g., -27.47): ") or "-27.47")
         size = float(input("Enter square size in meters (e.g., 5000): ") or "5000")
-        process_fuel(lon, lat, size)
+        sid = input("Enter scenario ID (e.g., daguilar): ") or "default"
+        process_fuel(lon, lat, size, sid)
     except Exception as e:
         print(f"Error: {e}")

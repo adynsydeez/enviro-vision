@@ -47,17 +47,39 @@ Format the output as:
 class QuizRequest(BaseModel):
     num_questions: int         = Field(5,   ge=1, le=10,  description="Number of quiz questions")
     year_group:    int         = Field(4,   ge=3, le=6,   description="Target year group (3–6)")
-    scenario_id:   Optional[int] = Field(None,            description="Link quiz to a simulation scenario")
+    scenario_id:   Optional[str] = Field(None,            description="Link quiz to a simulation scenario")
+
+class QuizQuestion(BaseModel):
+    question: str
+    options: list[str]
+    correctIndex: int
+    fact: str
 
 class QuizResponse(BaseModel):
-    scenario_id:   Optional[int]
+    scenario_id:   Optional[str]
     year_group:    int
-    num_questions: int
-    content:       str                                     # Raw quiz text from Claude
+    questions:     list[QuizQuestion]
 
 # ── Helper ────────────────────────────────────────────────────────────────────
 
 YEAR_AGE_MAP = {3: "8–9", 4: "9–10", 5: "10–11", 6: "11–12"}
+
+QUIZ_PROMPT_TEMPLATE = """Generate a {num_questions}-question multiple choice quiz about 
+bushfire safety in Queensland, Australia for Year {year_group} students (ages {age_range}).
+
+Return ONLY a JSON object with this structure:
+{{
+  "questions": [
+    {{
+      "question": "The question text",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctIndex": 0,
+      "fact": "A short interesting fact or explanation for the correct answer"
+    }}
+  ]
+}}
+
+Topics to cover: fire warning levels, evacuation, and Queensland-specific environment."""
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
@@ -74,23 +96,23 @@ def generate_quiz(body: QuizRequest):
 
     try:
         response = client.messages.create(
-            model      = "claude-sonnet-4-20250514",
-            max_tokens = 500 + (body.num_questions * 200),  # Scale with question count
+            model      = "claude-3-5-sonnet-20240620",
+            max_tokens = 2000,
             system     = SYSTEM_PROMPT,
             messages   = [{"role": "user", "content": prompt}]
         )
-    except anthropic.APIConnectionError:
-        raise HTTPException(status_code=503, detail="Could not reach Anthropic API — check your connection.")
-    except anthropic.AuthenticationError:
-        raise HTTPException(status_code=401, detail="Invalid Anthropic API key — check your .env file.")
-    except anthropic.RateLimitError:
-        raise HTTPException(status_code=429, detail="Anthropic rate limit hit — try again shortly.")
-    except anthropic.APIStatusError as e:
-        raise HTTPException(status_code=502, detail=f"Anthropic API error: {e.message}")
+        
+        # Extract JSON from response
+        import json
+        content_text = response.content[0].text
+        quiz_data = json.loads(content_text)
+        
+        return QuizResponse(
+            scenario_id = body.scenario_id,
+            year_group = body.year_group,
+            questions = quiz_data["questions"]
+        )
 
-    return QuizResponse(
-        scenario_id   = body.scenario_id,
-        year_group    = body.year_group,
-        num_questions = body.num_questions,
-        content       = response.content[0].text,
-    )
+    except Exception as e:
+        print(f"Quiz Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

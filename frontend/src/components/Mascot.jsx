@@ -6,8 +6,8 @@ import './Mascot.css';
  * 
  * @param {Object} mascotHook The mascot state and control object from useMascot.
  */
-const Mascot = ({ mascotHook }) => {
-  const { isIntroActive, currentMessage, showBubble, nextIntro } = mascotHook;
+const Mascot = ({ mascotHook, onQuiz }) => {
+  const { isIntroActive, currentMessage, showBubble, nextIntro, gameStatus } = mascotHook;
 
   return (
     <>
@@ -35,12 +35,24 @@ const Mascot = ({ mascotHook }) => {
           >
             <div className={`
               bg-gray-950/85 border border-gray-700/50 backdrop-blur-md 
-              text-white p-4 shadow-2xl
+              text-white p-4 shadow-2xl flex flex-col gap-3
               ${currentMessage.length > 40 ? 'rounded-2xl' : 'rounded-full px-6'}
             `}>
               <p className="text-sm md:text-base leading-relaxed font-medium">
                 {currentMessage}
               </p>
+              
+              {gameStatus && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onQuiz();
+                  }}
+                  className="bg-orange-600 hover:bg-orange-500 text-white py-2 px-4 rounded-lg font-bold text-xs uppercase tracking-widest transition-colors flex items-center justify-center gap-2 self-center mt-1 cursor-pointer"
+                >
+                  Take Safety Quiz
+                </button>
+              )}
             </div>
             {/* Pointer triangle - positioned to point at the mascot center (w-24/w-32) */}
             <div className="mascot-bubble-tail left-12 md:left-16" />

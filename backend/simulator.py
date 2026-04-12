@@ -16,15 +16,15 @@ from data_processing.elevation_processing import process_elevation
 
 class GridFireSimulation:
     def __init__(self, origin_lon, origin_lat, size_m, wind_speed, wind_dir, 
-                 cell_res_m=5.0, burn_duration=5):
+                 cell_res_m=5.0, burn_duration=5, scenario_id="default"):
         """
         Wildfire Simulation with three-pane visualization (Fire, Topo, Veg).
         States:
         0: Unburned Fuel
         1: Burning
         2: Burned Out
-        3: Control Line / Permanent Barrier (No evaporation)
-        4: Watered / Temporary Barrier (Can dry out)
+        3: Control Line / Permanent Barrier
+        4: Watered / Temporary Barrier
         """
         self.cell_res_m = cell_res_m
         self.size = max(20, int(size_m / cell_res_m))
@@ -33,6 +33,7 @@ class GridFireSimulation:
         self.size_m = size_m
         self.wind_speed = wind_speed
         self.wind_dir = wind_dir
+        self.scenario_id = scenario_id
         
         # Alexandridis Coefficients
         self.a_s = 0.078 
@@ -45,13 +46,14 @@ class GridFireSimulation:
         self.burn_time = np.zeros((self.size, self.size), dtype=np.int16)
         self.elevation = np.zeros((self.size, self.size), dtype=np.float32)
         self.flammability = np.zeros((self.size, self.size), dtype=np.float32)
+        self.p_base_fire = 0.05
         
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
 
         # 1. RUN DATA PROCESSING AUTOMATICALLY
-        print(f"\n--- Processing Data for ({origin_lon}, {origin_lat}) ---")
-        process_fuel(self.origin_lon, self.origin_lat, self.size_m)
-        process_elevation(self.origin_lon, self.origin_lat, self.size_m)
+        print(f"\n--- Processing Data for ({origin_lon}, {origin_lat}) [Scenario: {scenario_id}] ---")
+        process_fuel(self.origin_lon, self.origin_lat, self.size_m, self.scenario_id)
+        process_elevation(self.origin_lon, self.origin_lat, self.size_m, self.scenario_id)
 
         # 2. Determine target metric bounds
         transformer_to_3577 = Transformer.from_crs("EPSG:4326", "EPSG:3577", always_xy=True)
@@ -65,8 +67,13 @@ class GridFireSimulation:
 
     def _load_and_interpolate(self):
         output_data_dir = os.path.join(self.base_dir, "data_processing", "output_data")
-        fuel_path = os.path.join(output_data_dir, "cropped_fuel_types.csv")
-        elev_path = os.path.join(output_data_dir, "cropped_elevation.csv")
+        fuel_path = os.path.join(output_data_dir, f"cropped_fuel_types_{self.scenario_id}.csv")
+        elev_path = os.path.join(output_data_dir, f"cropped_elevation_{self.scenario_id}.csv")
+
+        if not os.path.exists(fuel_path) or not os.path.exists(elev_path):
+            # Fallback to default if scenario specific files don't exist yet
+            fuel_path = os.path.join(output_data_dir, "cropped_fuel_types.csv")
+            elev_path = os.path.join(output_data_dir, "cropped_elevation.csv")
 
         df_fuel = pd.read_csv(fuel_path)
         df_elev = pd.read_csv(elev_path)
@@ -86,7 +93,7 @@ class GridFireSimulation:
 
         print(f"Interpolating {self.size}x{self.size} grid (5m Resolution)...")
         self.flammability = griddata((df_fuel['y'], df_fuel['x']), df_fuel['flammability'], (grid_y, grid_x), method='nearest', fill_value=0.0)
-        self.elevation = griddata((df_elev['y'], df_elev['x']), df_elev['elevation'], (grid_y, grid_x), method='linear', fill_value=np.nanmean(df_elev['elevation']))
+        self.elevation = griddata((df_elev['y'], df_elev['x']), df_elev['elevation'], (grid_y, grid_x), method='nearest', fill_value=np.nanmean(df_elev['elevation']))
 
         self.flammability = np.nan_to_num(self.flammability, nan=0.0)
         self.elevation = np.nan_to_num(self.elevation, nan=np.nanmean(self.elevation))
@@ -109,7 +116,6 @@ class GridFireSimulation:
     def add_control_line(self, x0, y0, x1, y1, thickness=2.4):
         """
         Adds a permanent control line (State 3).
-        x0, y0, x1, y1 are in grid cell indices.
         """
         yy, xx = np.mgrid[:self.size, :self.size]
         ldx, ldy = x1 - x0, y1 - y0
@@ -120,8 +126,36 @@ class GridFireSimulation:
             t = np.clip(((xx - x0) * ldx + (yy - y0) * ldy) / llen2, 0, 1)
             dist_sq = (xx - (x0 + t * ldx))**2 + (yy - (y0 + t * ldy))**2
         mask = dist_sq <= (thickness / 2.0)**2
-        self.state[(mask) & (self.state == 0)] = 3
+        # Only place on fuel or burning (to extinguish)
+        self.state[(mask) & ((self.state == 0) | (self.state == 1))] = 3
         print(f"Added control line from ({x0}, {y0}) to ({x1}, {y1})")
+
+    def add_backburn(self, x0, y0, x1, y1, thickness=3.0):
+        """
+        Intentionally burns a line of fuel (State 2) to create a firebreak.
+        """
+        yy, xx = np.mgrid[:self.size, :self.size]
+        ldx, ldy = x1 - x0, y1 - y0
+        llen2 = ldx*ldx + ldy*ldy
+        if llen2 == 0:
+            dist_sq = (xx - x0)**2 + (yy - y0)**2
+        else:
+            t = np.clip(((xx - x0) * ldx + (yy - y0) * ldy) / llen2, 0, 1)
+            dist_sq = (xx - (x0 + t * ldx))**2 + (yy - (y0 + t * ldy))**2
+        mask = dist_sq <= (thickness / 2.0)**2
+        # Only affects unburned fuel
+        self.state[(mask) & (self.state == 0)] = 2
+        print(f"Executed backburn from ({x0}, {y0}) to ({x1}, {y1})")
+
+    def add_evacuation_point(self, x, y, radius=5):
+        """
+        Adds a visual marker/protected area (State 3).
+        """
+        yy, xx = np.mgrid[:self.size, :self.size]
+        dist_sq = (xx - x)**2 + (yy - y)**2
+        mask = dist_sq <= radius**2
+        self.state[(mask) & (self.state == 0)] = 3
+        print(f"Set evacuation point at ({x}, {y})")
 
     def add_water_drop(self, x, y, radius=3):
         """
