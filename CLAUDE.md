@@ -42,7 +42,7 @@ frontend/src/
     Mascot.jsx                    Interactive character with speech bubbles and intro sequences
     MascotBubble.jsx              Simple speech bubble component for static messages
     QuizPage.jsx                  10-question educational quiz with mascot feedback
-    ToolPalette.jsx               Floating sidebar for suppression tools (Water, Control, etc.)
+    ToolPalette.jsx               Floating bottom bar for suppression tools (Water, Control, etc.)
   hooks/
     useMascot.js                  Mascot state management, intro sequences, random dialogue
     useSimulation.js              WebSocket (or MockWebSocket) state management
