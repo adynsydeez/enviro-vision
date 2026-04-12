@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FireCommander — Wind Visualisation Options</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0b1326; color: #dae2fd; font-family: 'Inter', sans-serif; padding: 28px; }
+
+  header { margin-bottom: 24px; }
+  header h1 { font-family: 'Manrope', sans-serif; font-size: 20px; font-weight: 800; color: #ffb690; letter-spacing: -0.3px; margin-bottom: 4px; }
+  header p  { font-size: 12px; color: #6b7280; }
+
+  .wind-ctrl {
+    display: flex; align-items: center; gap: 24px;
+    background: #131b2e; border-radius: 8px; padding: 14px 20px;
+    margin-bottom: 24px; border: 1px solid #1e2a40;
+  }
+  .wind-ctrl label { font-size: 11px; color: #9ca3af; display: flex; flex-direction: column; gap: 4px; }
+  .wind-ctrl input[type=range] { width: 140px; accent-color: #f97316; }
+  .wind-ctrl span { font-size: 13px; font-weight: 700; color: #ffb690; min-width: 40px; }
+  .compass {
+    width: 52px; height: 52px; border-radius: 50%;
+    border: 1px solid #2d3449; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    background: #0d1525;
+  }
+  .compass-needle {
+    width: 2px; height: 20px; background: #f97316;
+    border-radius: 2px; transform-origin: bottom center;
+    position: absolute; bottom: 50%;
+  }
+  .compass-label { font-size: 8px; color: #6b7280; font-weight: 600; }
+
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .panel { background: #131b2e; border-radius: 10px; overflow: hidden; border: 1px solid #1e2a40; }
+  .panel.pick { border-color: #f97316; box-shadow: 0 0 0 1px #f97316, 0 0 20px rgba(249,115,22,0.1); }
+
+  .panel-header { padding: 12px 16px 10px; border-bottom: 1px solid #1e2a40; }
+  .panel-label { font-size: 10px; font-weight: 600; color: #f97316; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; display: flex; align-items: center; gap: 8px; }
+  .badge { font-size: 9px; border: 1px solid #f97316; border-radius: 3px; padding: 1px 5px; color: #f97316; }
+  .panel-title { font-family: 'Manrope', sans-serif; font-size: 14px; font-weight: 700; color: #dae2fd; margin-bottom: 2px; }
+  .panel-desc { font-size: 11px; color: #6b7280; line-height: 1.5; }
+
+  canvas { display: block; width: 100%; aspect-ratio: 1; background: #060e20; }
+
+  .tags { padding: 8px 16px; display: flex; gap: 5px; flex-wrap: wrap; border-top: 1px solid #1e2a40; }
+  .tag { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 999px; border: 1px solid; }
+  .pro  { color: #4ade80; border-color: #14532d55; background: #052e1620; }
+  .con  { color: #f87171; border-color: #7f1d1d55; background: #450a0a20; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Wind Visualisation Options</h1>
+  <p>Same fire grid, four ways to show wind direction and magnitude. Drag the sliders to see how each responds.</p>
+</header>
+
+<!-- Wind controls -->
+<div class="wind-ctrl">
+  <label>
+    Direction (from)
+    <input type="range" id="dir" min="0" max="359" value="225">
+  </label>
+  <span id="dir-val">SW 225°</span>
+
+  <label>
+    Speed
+    <input type="range" id="spd" min="5" max="100" value="40">
+  </label>
+  <span id="spd-val">40 km/h</span>
+
+  <div class="compass">
+    <div class="compass-needle" id="needle"></div>
+    <span class="compass-label">N</span>
+  </div>
+</div>
+
+<div class="panels">
+
+  <!-- Option 1: Directional ember drift -->
+  <div class="panel pick">
+    <div class="panel-header">
+      <div class="panel-label">Option 1 <span class="badge">Recommended</span></div>
+      <div class="panel-title">Directional Ember Drift</div>
+      <div class="panel-desc">Sparks fly downwind from burning cells. Speed controls travel distance. Most intuitive for kids — you literally see where fire is headed.</div>
+    </div>
+    <canvas id="c1"></canvas>
+    <div class="tags">
+      <span class="tag pro">Highly readable</span>
+      <span class="tag pro">Speed encoded in drift length</span>
+      <span class="tag pro">Familiar (campfire sparks)</span>
+      <span class="tag con">Dense at high cell counts</span>
+    </div>
+  </div>
+
+  <!-- Option 2: Elongated wind shadow -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-label">Option 2</div>
+      <div class="panel-title">Elongated Glow Shadow</div>
+      <div class="panel-desc">Each burning cell casts a stretched glow in the downwind direction. Elegant and subtle — the fire "leans" with the wind.</div>
+    </div>
+    <canvas id="c2"></canvas>
+    <div class="tags">
+      <span class="tag pro">Low visual noise</span>
+      <span class="tag pro">Works at any cell density</span>
+      <span class="tag con">Less obvious at low speeds</span>
+      <span class="tag con">Subtlety may confuse kids</span>
+    </div>
+  </div>
+
+  <!-- Option 3: Wind streak lines -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-label">Option 3</div>
+      <div class="panel-title">Wind Streak Lines</div>
+      <div class="panel-desc">Short animated lines flow across the burning area in wind direction, like visible wind. Speed controls line velocity.</div>
+    </div>
+    <canvas id="c3"></canvas>
+    <div class="tags">
+      <span class="tag pro">Wind feels tangible</span>
+      <span class="tag pro">Speed clearly visible</span>
+      <span class="tag con">Busy over large fire areas</span>
+      <span class="tag con">Distracts from cell states</span>
+    </div>
+  </div>
+
+  <!-- Option 4: Combined drift + elongation -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-label">Option 4</div>
+      <div class="panel-title">Combined: Drift + Lean</div>
+      <div class="panel-desc">Ember drift (Option 1) layered with the elongated glow (Option 2). Maximum clarity — two independent cues reinforce the same direction.</div>
+    </div>
+    <canvas id="c4"></canvas>
+    <div class="tags">
+      <span class="tag pro">Strongest signal</span>
+      <span class="tag pro">Redundant encoding</span>
+      <span class="tag con">Slightly heavier to render</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── Shared simulation ────────────────────────────────────────────────────────
+const GS = 30;
+const grid    = new Uint8Array(GS * GS);
+const burnAge = new Uint8Array(GS * GS);
+const BURN    = 18;
+const DIRS    = [[-1,0],[1,0],[0,-1],[0,1]];
+
+function idx(x,y){ return y*GS+x; }
+
+// Seed centre
+const cx = Math.floor(GS/2), cy = Math.floor(GS/2);
+for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++) grid[idx(cx+dx,cy+dy)]=1;
+
+let tickTimer = 0;
+function tick() {
+  const next = new Uint8Array(grid), na = new Uint8Array(burnAge);
+  for(let y=0;y<GS;y++) for(let x=0;x<GS;x++){
+    const i=idx(x,y); if(grid[i]!==1) continue;
+    na[i]++;
+    if(na[i]>=BURN){ next[i]=2; continue; }
+    for(const[dx,dy] of DIRS){
+      const nx=x+dx, ny=y+dy;
+      if(nx<0||nx>=GS||ny<0||ny>=GS) continue;
+      // Wind-biased spread: upwind neighbour has higher probability
+      const windBias = getWindBias(dx, dy);
+      if(grid[idx(nx,ny)]===0 && Math.random()<0.14*windBias) next[idx(nx,ny)]=1;
+    }
+  }
+  grid.set(next); burnAge.set(na);
+}
+
+// ─── Wind state ───────────────────────────────────────────────────────────────
+let windDir = 225; // degrees FROM
+let windSpd = 40;  // km/h
+
+// Returns downwind vector (where fire spreads TO)
+function downwindVec() {
+  const rad = (windDir + 180) % 360 * Math.PI / 180;
+  return { x: Math.sin(rad), y: -Math.cos(rad) }; // canvas y-down
+}
+
+function getWindBias(dx, dy) {
+  const dw = downwindVec();
+  const dot = dx * dw.x + dy * dw.y; // -1 to 1
+  const t   = windSpd / 100;
+  return 1 + dot * t * 2.5; // 1x to 3.5x in downwind direction
+}
+
+// ─── Controls ─────────────────────────────────────────────────────────────────
+const dirSlider = document.getElementById('dir');
+const spdSlider = document.getElementById('spd');
+const dirVal    = document.getElementById('dir-val');
+const spdVal    = document.getElementById('spd-val');
+const needle    = document.getElementById('needle');
+
+const COMPASS_NAMES = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+function compassName(d) { return COMPASS_NAMES[Math.round(d/22.5)%16]; }
+
+function updateWind() {
+  windDir = +dirSlider.value;
+  windSpd = +spdSlider.value;
+  dirVal.textContent = `${compassName(windDir)} ${windDir}°`;
+  spdVal.textContent = `${windSpd} km/h`;
+  // Needle points INTO the wind (where wind comes from = where needle points)
+  needle.style.transform = `rotate(${windDir}deg)`;
+}
+dirSlider.addEventListener('input', updateWind);
+spdSlider.addEventListener('input', updateWind);
+updateWind();
+
+// ─── Canvas setup ─────────────────────────────────────────────────────────────
+const canvases = ['c1','c2','c3','c4'].map(id => {
+  const c = document.getElementById(id);
+  const r = c.parentElement.getBoundingClientRect();
+  c.width = c.height = Math.floor(r.width);
+  return c;
+});
+window.addEventListener('resize', () => {
+  canvases.forEach(c => {
+    const r = c.parentElement.getBoundingClientRect();
+    c.width = c.height = Math.floor(r.width);
+  });
+});
+
+function cellPx(c) { return c.width / GS; }
+
+function drawBase(ctx, c) {
+  const cw = cellPx(c);
+  ctx.clearRect(0,0,c.width,c.height);
+  for(let y=0;y<GS;y++) for(let x=0;x<GS;x++){
+    const s=grid[idx(x,y)]; if(s===0) continue;
+    const px=x*cw, py=y*cw;
+    if(s===2){
+      ctx.fillStyle='#1c0800';
+      ctx.fillRect(px,py,cw+.5,cw+.5);
+    }
+  }
+}
+
+function drawBurning(ctx, c) {
+  const cw = cellPx(c);
+  for(let y=0;y<GS;y++) for(let x=0;x<GS;x++){
+    const s=grid[idx(x,y)]; if(s!==1) continue;
+    const age=burnAge[idx(x,y)];
+    const t=Math.min(age/BURN,1);
+    const g=Math.floor(140*(1-t)+20*t);
+    const flicker=0.75+Math.random()*0.25;
+    const px=x*cw, py=y*cw;
+    ctx.shadowBlur=12*flicker;
+    ctx.shadowColor=`rgba(249,${g},22,${flicker})`;
+    ctx.fillStyle=`rgba(249,${g},22,${flicker})`;
+    ctx.fillRect(px,py,cw+.5,cw+.5);
+    ctx.shadowBlur=0;
+  }
+}
+
+// ─── Option 1: Ember Drift ────────────────────────────────────────────────────
+const embers1 = Array.from({length:120}, () => ({ x:0, y:0, vx:0, vy:0, life:1, active:false }));
+
+function spawnEmber(e) {
+  // Find a random burning cell
+  const burning = [];
+  for(let y=0;y<GS;y++) for(let x=0;x<GS;x++) if(grid[idx(x,y)]===1) burning.push({x,y});
+  if(!burning.length){ e.active=false; return; }
+  const cell = burning[Math.floor(Math.random()*burning.length)];
+  const cw = cellPx(canvases[0]);
+  e.x = (cell.x + 0.5) * cw;
+  e.y = (cell.y + 0.5) * cw;
+  const dw  = downwindVec();
+  const spd = (windSpd / 100) * cw * 0.7 + 0.3;
+  const scatter = (Math.random()-0.5) * 0.6;
+  const perpX = -dw.y, perpY = dw.x;
+  e.vx = dw.x * spd + perpX * scatter * spd;
+  e.vy = dw.y * spd + perpY * scatter * spd;
+  e.life = 0;
+  e.maxLife = 0.4 + Math.random() * 0.6;
+  e.size = 1.5 + Math.random() * 2;
+  e.active = true;
+}
+
+function renderOption1() {
+  const c   = canvases[0];
+  const ctx = c.getContext('2d');
+  drawBase(ctx, c);
+  drawBurning(ctx, c);
+
+  // Embers
+  const dt = 0.016;
+  for(const e of embers1){
+    if(!e.active || e.life > e.maxLife) { spawnEmber(e); continue; }
+    e.x += e.vx * dt * 60;
+    e.y += e.vy * dt * 60;
+    e.life += dt;
+    const a = Math.sin((e.life/e.maxLife)*Math.PI) * 0.9;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.size, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(255,200,80,${a})`;
+    ctx.shadowBlur = e.size * 3;
+    ctx.shadowColor = `rgba(255,150,30,${a*0.6})`;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+}
+
+// ─── Option 2: Elongated glow shadow ─────────────────────────────────────────
+function renderOption2() {
+  const c   = canvases[1];
+  const ctx = c.getContext('2d');
+  const cw  = cellPx(c);
+  drawBase(ctx, c);
+
+  const dw  = downwindVec();
+  const t   = windSpd / 100;
+  const len = cw * (1 + t * 3.5); // stretch amount
+
+  for(let y=0;y<GS;y++) for(let x=0;x<GS;x++){
+    const s=grid[idx(x,y)]; if(s!==1) continue;
+    const age=burnAge[idx(x,y)];
+    const tc=Math.min(age/BURN,1);
+    const g=Math.floor(140*(1-tc)+20*tc);
+    const flicker=0.75+Math.random()*0.25;
+    const px=x*cw+cw/2, py=y*cw+cw/2;
+
+    // Stretched glow in downwind direction
+    ctx.save();
+    ctx.translate(px, py);
+    const angle = Math.atan2(dw.y, dw.x);
+    ctx.rotate(angle);
+    const grad = ctx.createRadialGradient(0,0,0, len*0.4,0, len);
+    grad.addColorStop(0,   `rgba(249,${g},22,${flicker*0.9})`);
+    grad.addColorStop(0.4, `rgba(249,${g},22,${flicker*0.5})`);
+    grad.addColorStop(1,   `rgba(249,${g},22,0)`);
+    ctx.fillStyle = grad;
+    ctx.scale(1, 0.4); // squash perpendicularly
+    ctx.beginPath();
+    ctx.ellipse(len*0.2, 0, len, cw*0.6, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    // Core cell
+    ctx.shadowBlur=8*flicker;
+    ctx.shadowColor=`rgba(249,${g},22,${flicker})`;
+    ctx.fillStyle=`rgba(249,${g},22,${flicker})`;
+    ctx.fillRect(x*cw, y*cw, cw+.5, cw+.5);
+    ctx.shadowBlur=0;
+  }
+}
+
+// ─── Option 3: Wind streak lines ─────────────────────────────────────────────
+const streaks = Array.from({length:80}, () => ({ x:0,y:0,life:0,active:false }));
+
+function spawnStreak(s, c) {
+  // Spawn upwind of a burning cell so streaks pass through fire
+  const burning = [];
+  for(let y=0;y<GS;y++) for(let x=0;x<GS;x++) if(grid[idx(x,y)]===1) burning.push({x,y});
+  if(!burning.length){ s.active=false; return; }
+  const cell = burning[Math.floor(Math.random()*burning.length)];
+  const cw   = cellPx(c);
+  const dw   = downwindVec();
+  const offset = (1.5 + Math.random()*2) * cw;
+  s.x = (cell.x+0.5)*cw - dw.x*offset + (Math.random()-0.5)*cw*2;
+  s.y = (cell.y+0.5)*cw - dw.y*offset + (Math.random()-0.5)*cw*2;
+  s.life = 0;
+  s.maxLife = 0.5 + Math.random()*0.4;
+  s.speed   = (windSpd/100)*cw*0.9 + 0.4;
+  s.len     = cw*(0.4 + (windSpd/100)*0.8);
+  s.active  = true;
+}
+
+function renderOption3() {
+  const c   = canvases[2];
+  const ctx = c.getContext('2d');
+  drawBase(ctx, c);
+  drawBurning(ctx, c);
+
+  const dw  = downwindVec();
+  const dt  = 0.016;
+
+  for(const s of streaks){
+    if(!s.active || s.life > s.maxLife){ spawnStreak(s, c); continue; }
+    s.x += dw.x * s.speed * dt * 60;
+    s.y += dw.y * s.speed * dt * 60;
+    s.life += dt;
+    const a = Math.sin((s.life/s.maxLife)*Math.PI) * 0.7;
+    ctx.beginPath();
+    ctx.moveTo(s.x, s.y);
+    ctx.lineTo(s.x - dw.x*s.len, s.y - dw.y*s.len);
+    ctx.strokeStyle = `rgba(255,200,100,${a})`;
+    ctx.lineWidth   = 1;
+    ctx.shadowBlur  = 3;
+    ctx.shadowColor = `rgba(255,160,50,${a*0.5})`;
+    ctx.stroke();
+    ctx.shadowBlur  = 0;
+  }
+}
+
+// ─── Option 4: Combined drift + elongated glow ────────────────────────────────
+const embers4 = Array.from({length:80}, () => ({ x:0,y:0,vx:0,vy:0,life:1,active:false }));
+
+function spawnEmber4(e) {
+  const burning=[];
+  for(let y=0;y<GS;y++) for(let x=0;x<GS;x++) if(grid[idx(x,y)]===1) burning.push({x,y});
+  if(!burning.length){ e.active=false; return; }
+  const cell=burning[Math.floor(Math.random()*burning.length)];
+  const cw=cellPx(canvases[3]);
+  e.x=(cell.x+0.5)*cw; e.y=(cell.y+0.5)*cw;
+  const dw=downwindVec();
+  const spd=(windSpd/100)*cw*0.65+0.3;
+  const sc=(Math.random()-0.5)*0.5;
+  const px=-dw.y, py=dw.x;
+  e.vx=dw.x*spd+px*sc*spd; e.vy=dw.y*spd+py*sc*spd;
+  e.life=0; e.maxLife=0.4+Math.random()*0.5;
+  e.size=1.2+Math.random()*1.8; e.active=true;
+}
+
+function renderOption4() {
+  const c   = canvases[3];
+  const ctx = c.getContext('2d');
+  const cw  = cellPx(c);
+  drawBase(ctx, c);
+
+  // Elongated glow pass
+  const dw=downwindVec(), t=windSpd/100, len=cw*(1+t*3);
+  for(let y=0;y<GS;y++) for(let x=0;x<GS;x++){
+    const s=grid[idx(x,y)]; if(s!==1) continue;
+    const age=burnAge[idx(x,y)], tc=Math.min(age/BURN,1);
+    const g=Math.floor(140*(1-tc)+20*tc);
+    const flicker=0.75+Math.random()*0.25;
+    ctx.save();
+    ctx.translate(x*cw+cw/2, y*cw+cw/2);
+    ctx.rotate(Math.atan2(dw.y,dw.x));
+    const grad=ctx.createRadialGradient(0,0,0,len*0.3,0,len);
+    grad.addColorStop(0,`rgba(249,${g},22,${flicker*0.7})`);
+    grad.addColorStop(1,`rgba(249,${g},22,0)`);
+    ctx.fillStyle=grad;
+    ctx.scale(1,0.35);
+    ctx.beginPath();
+    ctx.ellipse(len*0.15,0,len,cw*0.6,0,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+    ctx.shadowBlur=10*flicker;
+    ctx.shadowColor=`rgba(249,${g},22,${flicker})`;
+    ctx.fillStyle=`rgba(249,${g},22,${flicker})`;
+    ctx.fillRect(x*cw,y*cw,cw+.5,cw+.5);
+    ctx.shadowBlur=0;
+  }
+
+  // Ember drift pass
+  const dt=0.016;
+  for(const e of embers4){
+    if(!e.active||e.life>e.maxLife){ spawnEmber4(e); continue; }
+    e.x+=e.vx*dt*60; e.y+=e.vy*dt*60; e.life+=dt;
+    const a=Math.sin((e.life/e.maxLife)*Math.PI)*0.9;
+    ctx.beginPath();
+    ctx.arc(e.x,e.y,e.size,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,210,90,${a})`;
+    ctx.shadowBlur=e.size*3;
+    ctx.shadowColor=`rgba(255,140,30,${a*0.6})`;
+    ctx.fill();
+    ctx.shadowBlur=0;
+  }
+}
+
+// ─── Main loop ────────────────────────────────────────────────────────────────
+let last=0;
+function loop(now) {
+  if(now-last>220){ tick(); last=now; }
+  renderOption1();
+  renderOption2();
+  renderOption3();
+  renderOption4();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

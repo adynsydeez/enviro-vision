@@ -1,187 +1,188 @@
-# Palan-Tir of Fire: Wildfire Simulation Training Platform
+# CLAUDE.md
 
-## 1. Problem Statement
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Wildfire spread is rapid and unpredictable, making real-world training for firefighters dangerous and expensive. This platform provides a low-risk, high-fidelity environment to train for wildfire spread scenarios across Australia using simulated data.
+## Project Overview
 
-## 2. Goals
+**FireCommander** — a wildfire simulation platform. Motto: *"Play with fire. Safely."*
 
-- **Simulation Engine:** A Python/NumPy-based cellular automata model that calculates fire spread in real-time.
-- **Interactive Dashboard:** A React-based UI for visualizing fire spread on a map and interacting with simulation variables.
-- **Dynamic Inputs:** Sliders for temperature, humidity, wind speed, and wind direction.
-- **Tactical Tools:** Mitigation tools like Water Drops, Control Lines, and Backburns to halt fire spread.
-- **Training Metrics:** Real-time stats on hectares burned, structures saved, and overall containment score.
+**Target Audience:** Kids, teens, and young adults — not professional firefighters. The goal is environmental literacy and basic tactical thinking around wildfire behaviour. UI should be approachable, engaging, and game-like while remaining grounded in realistic fire science.
 
-## 3. High-Level Architecture
+Users select a Queensland wildfire scenario, then practice suppression strategies — control lines, water drops, backburns — on a real satellite map locked to a 10×10km area around the location.
 
-The platform uses a client-server architecture optimized for low-latency simulation updates:
+## Commands
 
-```mermaid
-graph TD
-    subgraph "Frontend (React + Leaflet)"
-        UI[Dashboard UI] -->|Update Env/Tools| WS_Client[WebSocket Client]
-        MAP[Leaflet Map] --- CANV[Canvas Overlay]
-        WS_Client -->|Sparse Updates| CANV
-    end
-
-    subgraph "Backend (FastAPI + Python)"
-        WS_Server[WebSocket Server] <--> WS_Client
-        REST[REST API] <--> UI
-        SIM[Sim Engine / NumPy] <--> WS_Server
-        DB[(SQLite)] <--> REST
-    end
-
-    SIM -->|Calculate Tick| SIM
-    REST -->|Init Scenario| SIM
+### Frontend (in `frontend/`)
+```bash
+npm run dev       # Start Vite dev server with HMR
+npm run build     # Production build
+npm run lint      # ESLint
+npm run preview   # Preview production build
 ```
 
-- **Frontend (React + Leaflet):**
-  - **`react-leaflet`**: Renders the base map layers.
-  - **HTML5 `<Canvas>` Layer**: A custom overlay that renders the fire grid as glowing particles.
-  - **WebSocket Client**: Receives the real-time "Fire Matrix" from the backend.
-- **Backend (FastAPI + Python):**
-  - **Simulation Engine**: A Python class managing a 2D NumPy array for the fire grid.
-  - **WebSocket Server**: Broadcasters the compressed fire state (active fire cell coordinates) to the frontend every 500ms.
-  - **REST API**: Handles scenario initialization, resets, and user authentication.
-
-## 4. Simulation Engine (The Grid & Math)
-
-The simulation is a **State-Based Cellular Automata (CA)** model running on a 100x100 grid (extensible to 500x500).
-
-### 4.1. Cell States & Transitions
-
-```mermaid
-stateDiagram-v2
-    [*] --> Unburned
-    Unburned --> Burning : P_burn > rand()
-    Burning --> Burned : Burn Duration Elapsed
-    Unburned --> ControlLine : User Deploy Tool
-    Unburned --> Watered : Water Drop Tool
-    Watered --> Unburned : Drying Over Time
-    Burning --> Watered : Water Drop Tool
-    Burned --> [*]
+### Backend (repo root)
+```bash
+uvicorn api:app --reload --port 8000   # Start FastAPI dev server
+pip install fastapi uvicorn            # Install deps if needed
 ```
 
-- **Data Layers:**
-  - **Static Layers (Pre-calculated):**
-    - **Elevation Map**: 100x100 grid of altitude data.
-    - **Slope Layer**: 100x100 grid of pre-calculated uphill gradients (calculated once per scenario load).
-    - **Fuel Map**: 100x100 grid of vegetation type and density factors ($P_{veg}, P_{den}$).
-  - **Dynamic State Layer:**
-    - **Cell State**: `0`: Unburned, `1`: Burning, `2`: Burned, `3`: Control Line, `4`: Watered.
+No test framework is configured yet.
 
-### 4.2. Transition Rules (Alexandridis CA Model)
+## Architecture
 
-Each **Unburned** cell calculates its probability of ignition ($P_{burn}$) in every simulation tick:
-
-- $P_{burn} = P_0 \cdot (1 + P_{veg}) \cdot (1 + P_{den}) \cdot P_w \cdot P_s$
-- **Constants & Factors**:
-  - $P_0 = 0.58$: Base ignition probability.
-  - $P_w = \exp(V_{mid} \cdot [0.045 + 0.131 \cdot (\cos(\theta) - 1)])$: Wind factor.
-  - $P_s = \exp(0.078 \cdot \text{slope\_angle})$: Slope factor (uphill spread is faster).
-- **Moisture Threshold**: If Fuel Moisture (calculated from Temp/Humidity) $> 25\%$, spread stops.
-
-## 5. UI Layout & User Experience
-
-The dashboard is designed for rapid tactical decision-making:
-
-- **Sidebar (Left):**
-  - **Atmospheric Sliders**: Real-time control of Temp (0-50°C), Wind (0-100 km/h), and Humidity (0-100%).
-  - **Tool Palette**: Icons for Water Drop, Control Line, Backburn, and Evac Zone.
-  - **Post-Incident Report**: Real-time stats on fire impact (Hectares burned, Containment score).
-- **Map (Right):**
-  - A full-screen interactive map with a glowing, flickering fire overlay rendered on a canvas.
-  - **Interactivity**: Clicking on the map with an "armed" tool sends the GPS coordinates to the backend to apply mitigation effects.
-
-## 6. API Specification & Data Model
-
-### 6.1. REST API (FastAPI)
-
-- `GET /api/scenarios`: List pre-defined maps.
-- `POST /api/simulation/start?scenario_id={id}`: Reset and initialize a global simulation session.
-- `PATCH /api/simulation/env`: Update environmental factors (Temp, Wind, Humidity).
-- `POST /api/simulation/interact`: Apply a tool (Water Drop, etc.) to GPS coordinates.
-- `GET /api/leaderboard`: Top 10 historical scores.
-
-### 6.2. WebSocket Protocol (`/ws/simulation`)
-
-To optimize performance over hackathon Wi-Fi, the platform uses a **Sparse Matrix Update** protocol.
-
-```mermaid
-sequenceDiagram
-    participant FE as Frontend
-    participant BE as Backend
-    FE->>BE: Connect WebSocket
-    BE->>FE: FULL_SYNC (Grid + Stats)
-    loop Every 500ms
-        BE->>BE: Compute Tick (NumPy)
-        BE->>FE: TICK_UPDATE (Sparse Changes)
-    end
-    FE->>BE: INTERACT (Tool Event)
+```
+frontend/src/
+  App.jsx                         Route between LandingPage, MapView, and QuizPage
+  LandingPage.jsx                 Scenario selection with Grid/Map toggle, ember animation
+  MapView.jsx                     Full-screen Leaflet map, satellite, canvas layers, UI overlays
+  ScenarioMapView.jsx             QLD overview map with all 6 scenario pins + popup cards
+  components/
+    ControlLineOverlay.jsx        Canvas preview for pending control lines (start → cursor)
+    MapClickHandler.jsx           Handles tool interactions (click/drag) and cell rasterisation
+    Mascot.jsx                    Interactive character with speech bubbles and intro sequences
+    MascotBubble.jsx              Simple speech bubble component for static messages
+    QuizPage.jsx                  10-question educational quiz with mascot feedback
+    ToolPalette.jsx               Floating sidebar for suppression tools (Water, Control, etc.)
+  hooks/
+    useMascot.js                  Mascot state management, intro sequences, random dialogue
+    useSimulation.js              WebSocket (or MockWebSocket) state management
+  services/
+    MockWebSocket.js              Client-side Alexandridis CA simulation (production-ready)
+  layers/
+    BaseCanvasLayer.js            L.Layer subclass with rAF render loop
+    FireCanvasLayer.js            Fire cells + ember particle system
+    VegetationCanvasLayer.js      Vegetation overlay with hover tooltips
+  data/
+    quiz-questions.js             Pool of wildfire educational questions and facts
+    scenarios.js                  6 QLD scenarios with coords, images, risk levels, dialogue
+    vegetation-mapping.js         24 vegetation types across 4 classification groups
+  utils/
+    geo.js                        Lat/lng bounds from center + radius in km, cell conversion
+api.py                            FastAPI backend (stub — only GET / endpoint exists)
+docs/superpowers/                 Implementation plans and design specs
+frontend/design_assets/           UI mockups, design system, fire-viz comparison
 ```
 
-#### 6.2.1. Sparse Update Logic
+## Scenarios (all Queensland)
 
-Instead of sending a 10,000-cell array every 500ms, the backend only broadcasts cell coordinates that have changed state or are currently active.
+| Name | Year | Area | Risk |
+|------|------|------|------|
+| D'Aguilar | 2023 | 22,000 ha | High |
+| Lamington | 2019 | 6,000 ha | High |
+| Glass House Mountains | 2019 | 28,000 ha | Extreme |
+| Bunya Mountains | 2019 | 12,000 ha | High |
+| Girraween | 2019 | 36,000 ha | Catastrophic |
+| Eungella | 2018 | 9,000 ha | Extreme |
 
-#### 6.2.2. JSON Message Schemas
+## What Is Implemented
 
-- **`FULL_SYNC`**: Sent on connection or reset to hydrate the entire current state.
+**Landing page (`LandingPage.jsx`)**
+- Animated ember background (55 particles, CSS keyframes: rise + sway)
+- Scenario card grid (3×2)
+- Grid/Map view toggle — switches between card grid and `ScenarioMapView`
 
-  ```json
-  {
-    "type": "FULL_SYNC",
-    "grid": [{"x": 10, "y": 20, "s": 1}, ...], // s = state
-    "stats": { "burned": 1240, "score": 85 }
-  }
-  ```
+**Scenario map view (`ScenarioMapView.jsx`)**
+- CartoDB Dark Matter base tiles
+- Custom orange fire pins with glow shadows for all 6 scenarios
+- Popup cards with scenario image, risk badge, Launch button
+- Leaflet popup chrome stripped via CSS overrides
 
-- **`TICK_UPDATE`**: Sent every simulation tick with only state changes.
+**Simulation map (`MapView.jsx`)**
+- Satellite imagery (Esri/Maxar), bounds locked to 10×10km
+- Togglable layer registry (`LAYER_DEFS`) — Fire and Foliage layers
+- FlyToScenario animation (1.5s)
+- Wind compass + speed slider (0–100 km/h)
+- Live stats panel (burning cells, burned ha, tick, score)
+- Pause/resume, visual effects toggle
+- **Mascot Integration:** Intro sequences and triggered dialogue per scenario
+- **Tool Palette:** Sidebar for arming suppression tools
 
-  ```json
-  {
-    "type": "TICK",
-    "changes": [{"x": 12, "y": 20, "s": 1}, ...],
-    "stats": { "burned": 1241, "score": 84 }
-  }
-  ```
+**Interactive Tools (`ToolPalette.jsx` / `MapClickHandler.jsx`)**
+- **Water Drop:** 5×5 circular suppression (radius 3), 3s cooldown
+- **Control Line:** Two-click placement, max 30 cells, 10s cooldown. Includes `ControlLineOverlay` for canvas preview during placement.
+- **Backburn/Evac:** UI stubs in palette (locked/coming soon).
 
-#### 6.2.3. Data Implementation Detail
+**Mascot & Education (`Mascot.jsx` / `QuizPage.jsx`)**
+- **Intro Sequences:** Animated intro dialogue on scenario launch.
+- **Dynamic Dialogue:** Random "General", "Success", or "Failure" messages based on simulation state.
+- **Wildfire Quiz:** 10-question randomized quiz with facts and performance badges.
 
-- **Backend (NumPy)**: Uses `np.where` to find non-zero cells and maps them to concise `{x, y, s}` objects.
-- **Frontend (Map)**: Uses a `useRef(new Map())` to store simulation data outside of React state (keyed by `"x,y"`), preventing expensive full-page re-renders while allowing the Canvas to draw efficiently.
+**Canvas layers**
+- `BaseCanvasLayer.js` — rAF loop, resize handling, proper cleanup
+- `FireCanvasLayer.js` — cell state colours, shadow glow (ctx.shadowBlur), burn-age colour fade (orange → deep red), ember particle system (max 600, wind-drifted, size/opacity decay)
+- `VegetationCanvasLayer.js` — 35% transparent overlay, type-specific colours, hover tooltips showing type + name, group filter
 
-### 6.3. Database Schema (SQLite)
+**Client-side simulation (`MockWebSocket.js`)**
+- Alexandridis cellular automata, 1000×1000 grid (10m cells = 10×10km)
+- Procedural Voronoi vegetation generation (24 types)
+- Wind-biased spread (dot product, 2.5× max multiplier)
+- Base ignition prob: 0.16, burn duration: 14 ticks (~7s)
+- Interactive tools: water drops, control lines, backburns
+- Emits `FULL_SYNC` / `TICK_UPDATE` message format — ready for FastAPI backend
+- Pause/resume support
 
-- **Table: `scenarios`**: `id`, `name`, `center_lat`, `center_lng`, `initial_fire`, `fuel_map`.
-- **Table: `results`**: `id`, `team_name`, `scenario_id`, `score`, `ha_burned`, `timestamp`.
+**`useSimulation.js` hook**
+- `gridRef` — `Map<"x,y", state>` (never in React state)
+- `burnAgeRef` — `Map<"x,y", number>`
+- Stats: burning, burned, burnedHa, score, tick, wind
+- Methods: pause/resume, setWind, interact (tool + GPS coords)
 
-## 7. Team Roles & Milestones
+## What Is Not Yet Implemented
 
-### 7.1. Team Roles (5 People)
+- FastAPI backend (api.py is a 7-line stub; all simulation runs in MockWebSocket)
+- SQLite storage (scenarios table, leaderboard)
+- Real WebSocket synchronisation with backend
+- Atmospheric sliders (temp 0–50°C, humidity 0–100%) — wind only is live
+- Leaderboard screen
+- Real backend-driven tool effects
 
-- **Role 1 (Sim Engine - BE)**: NumPy fire spread logic and the core tick-loop.
-- **Role 2 (API/WS - BE)**: FastAPI server, WebSocket broadcaster, and Tool event handlers.
-- **Role 3 (Map/Canvas - FE)**: Leaflet integration and Canvas fire rendering (Glow/Particles).
-- **Role 4 (UI/Dash - FE)**: Sliders, Tool selection logic, sidebar, and real-time stats.
-- **Role 5 (Data/Pitch - Integration)**: Scenario data, UI polishing, and final pitch presentation.
+## Simulation Model (Alexandridis CA)
 
-### 7.2. Hackathon Milestones
+- Cell states: `0` Unburned · `1` Burning · `2` Burned · `3` Control Line · `4` Watered
+- Ignition: `P_burn = P₀ · (1 + P_veg) · (1 + P_den) · P_w · P_s` where `P₀ = 0.58` (mock uses 0.16)
+- Wind factor: `P_w = exp(V · [0.045 + 0.131·(cos(θ)−1)])`
+- Slope factor: `P_s = exp(0.078 · slope_angle)`
+- Moisture threshold: spread stops if fuel moisture > 25%
 
-- **Hours 0-4**: Scaffolding (FastAPI <-> React WebSocket link working).
-- **Hours 4-12**: MVP Simulation (Fire spreads on a static grid).
-- **Hours 12-24**: Interactivity (Sliders update $P_{burn}$ and Water Drops work).
-- **Hours 24-36**: Polishing (Glow effects, real map locations).
-- **Hours 36-48**: Pitch & Presentation preparation.
+## WebSocket Protocol
 
-## 8. Technical Stack
+- `FULL_SYNC` — full grid + stats on connect/reset
+- `TICK_UPDATE` — sparse `{x, y, s}` changes only, every ~500ms
 
-- **Frontend**: React, Leaflet.js, Lucide Icons, Tailwind CSS.
-- **Backend**: Python 3.10+, FastAPI, NumPy, Uvicorn, SQLite.
-- **Communication**: WebSockets (for the simulation stream).
+## Planned API Endpoints (not yet implemented)
 
-## 9. Success Criteria
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/scenarios` | List scenarios |
+| POST | `/api/simulation/start?scenario_id={id}` | Init/reset simulation |
+| PATCH | `/api/simulation/env` | Update temp/wind/humidity |
+| POST | `/api/simulation/interact` | Apply tool at GPS coords |
+| GET | `/api/leaderboard` | Top 10 scores |
 
-- **Sim performance**: <100ms calculation time per tick for a 100x100 grid.
-- **UI Responsiveness**: Fire visuals update smoothly in sync with backend ticks.
-- **Training Validity**: Fire spread follows intuitive physical patterns.
+## Planned SQLite Schema
+
+```sql
+CREATE TABLE scenarios (id, name, center_lat, center_lng, initial_fire BLOB, fuel_map BLOB);
+CREATE TABLE results   (id, team_name, scenario_id, score, ha_burned REAL, timestamp);
+```
+
+## Tech Stack
+
+- **Frontend:** React 18.2, react-leaflet 4.2.1, Vite 8.0.8, Tailwind CSS v4.2.2, Lucide icons
+- **Backend:** FastAPI, NumPy, SQLite (raw sqlite3, no ORM), Uvicorn
+- **No TypeScript** — pure JSX throughout
+
+## Design System
+
+`frontend/design_assets/design-system.md` — "Tactical Sentinel" dark theme, glassmorphism panels, Manrope + Inter fonts, orange/navy palette.
+
+Reference files:
+- `fire-viz-comparison.html` — side-by-side comparison of 4 fire rendering approaches (Option 1 chosen and implemented)
+- `foliage-colors.html` — vegetation colour palette
+- `wind-viz-options.html` — wind visualisation mockups
+- `dashboard-mockup.html/.png` — full UI mockup with left sidebar (sliders, tool palette), map, stats panel
+
+## Dashboard UI (planned)
+
+- **Left sidebar:** atmospheric sliders (temp 0–50°C, wind 0–100 km/h, humidity 0–100%), tool palette (Water Drop, Control Line, Backburn, Evac Zone), real-time stats
+- **Map:** full-screen satellite view with Canvas fire overlay; clicking with an armed tool sends GPS coords to backend

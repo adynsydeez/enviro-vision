@@ -1,3 +1,36 @@
+@theme {
+  --animate-in: in 0.5s ease-out;
+  --fade-in: fade-in 0.5s ease-out;
+  --slide-in-from-bottom-4: slide-in-from-bottom-4 0.5s ease-out;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slide-in-from-bottom-4 {
+    from { transform: translateY(1rem); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+}
+
+@import "tailwindcss";
+
+@keyframes ember-rise {
+  0%   { transform: translateY(0) scale(1); opacity: 0; }
+  6%   { opacity: 1; }
+  88%  { opacity: 0.85; }
+  100% { transform: translateY(-62vh) scale(0.15); opacity: 0; }
+}
+
+@keyframes ember-sway {
+  from { transform: translateX(-18px); }
+  to   { transform: translateX(18px); }
+}
+
+.ember-rise { animation: ember-rise linear infinite; }
+.ember-sway { animation: ember-sway ease-in-out infinite alternate; }
+
 :root {
   --text: #6b6375;
   --text-h: #08060d;
@@ -55,15 +88,8 @@ body {
 }
 
 #root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
+  width: 100%;
   min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
 }
 
 h1,
@@ -108,4 +134,20 @@ code {
   line-height: 135%;
   padding: 4px 8px;
   background: var(--code-bg);
+}
+
+/* Leaflet popup chrome — replaced by custom React card content */
+.leaflet-popup-content-wrapper {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+.leaflet-popup-tip-container {
+  display: none !important;
+}
+.leaflet-popup-content {
+  margin: 0 !important;
+  line-height: 1 !important;
 }

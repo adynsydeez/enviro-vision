@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FireCommander — Visualization Options</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0b1326;
+    color: #dae2fd;
+    font-family: 'Inter', sans-serif;
+    padding: 32px;
+    min-height: 100vh;
+  }
+
+  header { margin-bottom: 32px; }
+  header h1 {
+    font-family: 'Manrope', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: #ffb690;
+    letter-spacing: -0.4px;
+    margin-bottom: 6px;
+  }
+  header p { font-size: 13px; color: #6b7280; }
+
+  .panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .panel {
+    background: #131b2e;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #1e2a40;
+    display: flex;
+    flex-direction: column;
+  }
+  .panel.recommended {
+    border-color: #f97316;
+    box-shadow: 0 0 0 1px #f97316, 0 0 24px rgba(249,115,22,0.12);
+  }
+
+  .panel-header { padding: 14px 18px 12px; border-bottom: 1px solid #1e2a40; }
+  .panel-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #f97316;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .rec-badge {
+    font-size: 9px;
+    font-weight: 700;
+    color: #f97316;
+    border: 1px solid #f97316;
+    border-radius: 3px;
+    padding: 1px 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .panel-title {
+    font-family: 'Manrope', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: #dae2fd;
+    margin-bottom: 3px;
+  }
+  .panel-desc { font-size: 11px; color: #6b7280; line-height: 1.5; }
+
+  .render-area {
+    width: 100%;
+    aspect-ratio: 1;
+    position: relative;
+    background: #060e20;
+    overflow: hidden;
+  }
+  canvas.render-area { display: block; width: 100%; aspect-ratio: 1; }
+
+  /* DOM grid option */
+  #dom-grid {
+    display: grid;
+    width: 100%;
+    aspect-ratio: 1;
+  }
+
+  .panel-footer {
+    padding: 10px 18px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    border-top: 1px solid #1e2a40;
+  }
+  .tag {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid;
+  }
+  .pro  { color: #4ade80; border-color: #14532d55; background: #052e1620; }
+  .con  { color: #f87171; border-color: #7f1d1d55; background: #450a0a20; }
+  .note { color: #60a5fa; border-color: #1e3a5f55; background: #0c1a2e20; }
+
+  .perf-bar {
+    height: 3px;
+    background: #1e2a40;
+    margin-top: 8px;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .perf-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+
+  .stats-row {
+    display: flex;
+    gap: 16px;
+    padding: 8px 18px;
+    background: #0d1525;
+    border-top: 1px solid #1e2a40;
+    font-size: 10px;
+    color: #6b7280;
+  }
+  .stat span { color: #ffb690; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>FireCommander — Fire Visualization Options</h1>
+  <p>Same 40×40 cellular automata simulation, four different rendering approaches. Running live.</p>
+</header>
+
+<div class="panels">
+
+  <!-- OPTION 1: Canvas + Glow -->
+  <div class="panel recommended">
+    <div class="panel-header">
+      <div class="panel-label">Option 1 <span class="rec-badge">Recommended</span></div>
+      <div class="panel-title">HTML5 Canvas + Shadow Glow</div>
+      <div class="panel-desc">Custom Leaflet layer. Per-cell glow via <code>ctx.shadowBlur</code>. Fire colour shifts red→yellow based on burn age.</div>
+    </div>
+    <canvas id="canvas-glow" class="render-area"></canvas>
+    <div class="panel-footer">
+      <span class="tag pro">Full glow control</span>
+      <span class="tag pro">~2ms render</span>
+      <span class="tag pro">Scales to 500×500</span>
+      <span class="tag note">~30 lines boilerplate</span>
+    </div>
+  </div>
+
+  <!-- OPTION 2: DOM / SVG grid -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-label">Option 2</div>
+      <div class="panel-title">DOM / SVG Rectangle Grid</div>
+      <div class="panel-desc">One <code>&lt;div&gt;</code> per cell. Easy click handlers but flat visual, no blur effects, poor update performance.</div>
+    </div>
+    <div id="dom-grid" class="render-area"></div>
+    <div class="panel-footer">
+      <span class="tag pro">Native click events</span>
+      <span class="tag con">No glow / blur</span>
+      <span class="tag con">Jank at 100×100</span>
+      <span class="tag con">Flat appearance</span>
+    </div>
+  </div>
+
+  <!-- OPTION 3: Canvas Particles (deck.gl-like) -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-label">Option 3</div>
+      <div class="panel-title">Canvas Multi-layer Particles</div>
+      <div class="panel-desc">Simulates the visual ceiling of deck.gl/WebGL — radial gradients, floating sparks, layered blending. More code to maintain.</div>
+    </div>
+    <canvas id="canvas-particles" class="render-area"></canvas>
+    <div class="panel-footer">
+      <span class="tag pro">Highest visual quality</span>
+      <span class="tag pro">Sparks + layered glow</span>
+      <span class="tag con">~8ms render</span>
+      <span class="tag con">Complex to maintain</span>
+    </div>
+  </div>
+
+  <!-- OPTION 4: Image Overlay -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-label">Option 4</div>
+      <div class="panel-title">Offscreen Canvas → Image Overlay</div>
+      <div class="panel-desc">Renders to an offscreen canvas, converts to <code>dataURL</code>, sets as <code>&lt;img src&gt;</code>. Simplest Leaflet integration, but conversion overhead and visible update lag.</div>
+    </div>
+    <div class="render-area" style="display:flex; align-items:center; justify-content:center; background:#060e20;">
+      <img id="img-overlay" style="width:100%; height:100%; object-fit:contain; display:block;" alt="fire overlay">
+    </div>
+    <div class="panel-footer">
+      <span class="tag pro">Trivial Leaflet setup</span>
+      <span class="tag con">toDataURL() ~12ms</span>
+      <span class="tag con">Visible update flash</span>
+      <span class="tag con">GC pressure</span>
+    </div>
+  </div>
+
+</div>
+
+<canvas id="offscreen" style="display:none"></canvas>
+
+<script>
+// ─── Shared Simulation ──────────────────────────────────────────────────────
+
+const GRID = 40;
+const grid    = new Uint8Array(GRID * GRID); // 0 unburned, 1 burning, 2 burned
+const burnAge = new Uint8Array(GRID * GRID);
+const BURN_DURATION = 10;
+const SPREAD_PROB   = 0.18;
+const DIRS = [[-1,0],[1,0],[0,-1],[0,1]];
+
+function idx(x, y) { return y * GRID + x; }
+
+// Seed: 3x3 centre
+const cx = Math.floor(GRID / 2), cy = Math.floor(GRID / 2);
+for (let dy = -1; dy <= 1; dy++)
+  for (let dx = -1; dx <= 1; dx++)
+    if (cx+dx >= 0 && cx+dx < GRID && cy+dy >= 0 && cy+dy < GRID)
+      grid[idx(cx+dx, cy+dy)] = 1;
+
+function tick() {
+  const next    = new Uint8Array(grid);
+  const nextAge = new Uint8Array(burnAge);
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
+      const i = idx(x, y);
+      if (grid[i] !== 1) continue;
+      nextAge[i]++;
+      if (nextAge[i] >= BURN_DURATION) { next[i] = 2; continue; }
+      for (const [dx, dy] of DIRS) {
+        const nx = x+dx, ny = y+dy;
+        if (nx < 0 || nx >= GRID || ny < 0 || ny >= GRID) continue;
+        const ni = idx(nx, ny);
+        if (grid[ni] === 0 && Math.random() < SPREAD_PROB)
+          next[ni] = 1;
+      }
+    }
+  }
+  grid.set(next);
+  burnAge.set(nextAge);
+}
+
+// ─── Option 1: Canvas + Shadow Glow ─────────────────────────────────────────
+
+const c1 = document.getElementById('canvas-glow');
+function sizeCanvas(c) {
+  const r = c.parentElement.getBoundingClientRect();
+  c.width = r.width * window.devicePixelRatio;
+  c.height = r.width * window.devicePixelRatio; // square
+}
+sizeCanvas(c1);
+
+function renderGlow() {
+  const ctx = c1.getContext('2d');
+  const W = c1.width, H = c1.height;
+  const cw = W / GRID, ch = H / GRID;
+
+  ctx.fillStyle = '#060e20';
+  ctx.fillRect(0, 0, W, H);
+
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
+      const s = grid[idx(x, y)];
+      if (s === 0) continue;
+      const px = x * cw, py = y * ch;
+
+      if (s === 2) {
+        ctx.fillStyle = '#1c0800';
+        ctx.fillRect(px, py, cw, ch);
+      } else {
+        const age = burnAge[idx(x, y)] / BURN_DURATION;
+        const flicker = 0.75 + Math.random() * 0.25;
+        // Shift from bright orange → deep red as cell ages
+        const g = Math.floor(140 * (1 - age) + 20 * age);
+        ctx.shadowBlur = 14 * flicker;
+        ctx.shadowColor = `rgba(249,${g},22,${flicker})`;
+        ctx.fillStyle = `rgb(249,${g},22)`;
+        ctx.fillRect(px, py, cw, ch);
+        ctx.shadowBlur = 0;
+      }
+    }
+  }
+}
+
+// ─── Option 2: DOM Grid ──────────────────────────────────────────────────────
+
+const domGrid = document.getElementById('dom-grid');
+domGrid.style.gridTemplateColumns = `repeat(${GRID}, 1fr)`;
+domGrid.style.gridTemplateRows    = `repeat(${GRID}, 1fr)`;
+const cells = [];
+for (let i = 0; i < GRID * GRID; i++) {
+  const d = document.createElement('div');
+  d.style.background = '#060e20';
+  domGrid.appendChild(d);
+  cells.push(d);
+}
+
+function renderDOM() {
+  for (let i = 0; i < GRID * GRID; i++) {
+    const s = grid[i];
+    if      (s === 0) cells[i].style.background = '#060e20';
+    else if (s === 1) cells[i].style.background = '#f97316';
+    else              cells[i].style.background = '#3d1000';
+  }
+}
+
+// ─── Option 3: Canvas Multi-layer Particles ──────────────────────────────────
+
+const c3 = document.getElementById('canvas-particles');
+sizeCanvas(c3);
+
+// Spark particles per cell
+const sparks = [];
+for (let i = 0; i < 60; i++) {
+  sparks.push({
+    x: Math.random() * GRID, y: Math.random() * GRID,
+    vx: (Math.random() - 0.5) * 0.08,
+    vy: -(Math.random() * 0.15 + 0.05),
+    life: Math.random(),
+    maxLife: Math.random() * 0.6 + 0.4,
+    size: Math.random() * 2 + 0.5,
+  });
+}
+
+function renderParticles() {
+  const ctx = c3.getContext('2d');
+  const W = c3.width, H = c3.height;
+  const cw = W / GRID, ch = H / GRID;
+
+  ctx.fillStyle = '#030812';
+  ctx.fillRect(0, 0, W, H);
+
+  // Layer 1: burned cells
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
+      if (grid[idx(x,y)] !== 2) continue;
+      ctx.fillStyle = '#150500';
+      ctx.fillRect(x*cw, y*ch, cw, ch);
+    }
+  }
+
+  // Layer 2: outer diffuse glow for burning clusters
+  ctx.save();
+  ctx.globalAlpha = 0.35;
+  ctx.filter = `blur(${cw * 1.2}px)`;
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
+      if (grid[idx(x,y)] !== 1) continue;
+      const age = burnAge[idx(x,y)] / BURN_DURATION;
+      const g = Math.floor(160 * (1 - age) + 20 * age);
+      ctx.fillStyle = `rgb(249,${g},22)`;
+      ctx.fillRect(x*cw - cw*0.3, y*ch - ch*0.3, cw*1.6, ch*1.6);
+    }
+  }
+  ctx.restore();
+
+  // Layer 3: sharp cell cores
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
+      if (grid[idx(x,y)] !== 1) continue;
+      const age = burnAge[idx(x,y)] / BURN_DURATION;
+      const flicker = 0.7 + Math.random() * 0.3;
+      const px = x*cw, py = y*ch;
+      const grad = ctx.createRadialGradient(
+        px + cw/2, py + ch/2, 0,
+        px + cw/2, py + ch/2, cw * 0.8
+      );
+      const g = Math.floor(200 * (1 - age) + 50 * age);
+      grad.addColorStop(0,   `rgba(255,${Math.min(g+80,255)},100,${flicker})`);
+      grad.addColorStop(0.5, `rgba(249,${g},22,${flicker * 0.8})`);
+      grad.addColorStop(1,   `rgba(180,20,0,0)`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(px - cw*0.3, py - ch*0.3, cw*1.6, ch*1.6);
+    }
+  }
+
+  // Layer 4: floating sparks
+  for (const sp of sparks) {
+    const gx = Math.floor(sp.x), gy = Math.floor(sp.y);
+    const inFire = gx >= 0 && gx < GRID && gy >= 0 && gy < GRID && grid[idx(gx,gy)] === 1;
+    if (!inFire) {
+      // Respawn on a burning cell
+      let found = false;
+      for (let attempts = 0; attempts < 20; attempts++) {
+        const rx = Math.floor(Math.random() * GRID), ry = Math.floor(Math.random() * GRID);
+        if (grid[idx(rx, ry)] === 1) {
+          sp.x = rx + Math.random(); sp.y = ry + Math.random();
+          sp.vx = (Math.random()-0.5)*0.08;
+          sp.vy = -(Math.random()*0.15+0.05);
+          sp.life = 0; found = true; break;
+        }
+      }
+      if (!found) continue;
+    }
+    sp.x += sp.vx; sp.y += sp.vy;
+    sp.life += 0.02;
+    const alpha = Math.sin((sp.life / sp.maxLife) * Math.PI) * 0.9;
+    ctx.beginPath();
+    ctx.arc(sp.x * cw, sp.y * ch, sp.size, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,220,100,${alpha})`;
+    ctx.fill();
+  }
+}
+
+// ─── Option 4: Image Overlay ─────────────────────────────────────────────────
+
+const offscreen = document.getElementById('offscreen');
+const imgEl     = document.getElementById('img-overlay');
+function sizeOffscreen() {
+  offscreen.width  = 400;
+  offscreen.height = 400;
+}
+sizeOffscreen();
+
+let lastDataUrl = null;
+let imgUpdateTimer = 0;
+
+function renderImageOverlay(now) {
+  // Only convert to dataURL every ~500ms to simulate the real use-case latency
+  if (now - imgUpdateTimer > 500) {
+    imgUpdateTimer = now;
+    const ctx = offscreen.getContext('2d');
+    const W = offscreen.width, H = offscreen.height;
+    const cw = W / GRID, ch = H / GRID;
+    ctx.fillStyle = '#060e20';
+    ctx.fillRect(0, 0, W, H);
+    for (let y = 0; y < GRID; y++) {
+      for (let x = 0; x < GRID; x++) {
+        const s = grid[idx(x, y)];
+        if (s === 0) continue;
+        const px = x*cw, py = y*ch;
+        if (s === 2) {
+          ctx.fillStyle = '#1c0800';
+        } else {
+          const age = burnAge[idx(x,y)] / BURN_DURATION;
+          const g = Math.floor(140*(1-age)+20*age);
+          ctx.shadowBlur = 12;
+          ctx.shadowColor = `rgba(249,${g},22,0.9)`;
+          ctx.fillStyle = `rgb(249,${g},22)`;
+        }
+        ctx.fillRect(px, py, cw, ch);
+        ctx.shadowBlur = 0;
+      }
+    }
+    // This is the expensive step — simulates Leaflet imageOverlay.setUrl()
+    imgEl.src = offscreen.toDataURL();
+  }
+}
+
+// ─── Main Loop ───────────────────────────────────────────────────────────────
+
+let lastTick = 0;
+const TICK_MS = 180;
+
+function loop(now) {
+  if (now - lastTick > TICK_MS) {
+    tick();
+    lastTick = now;
+  }
+
+  renderGlow();
+  renderDOM();
+  renderParticles();
+  renderImageOverlay(now);
+
+  requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+
+window.addEventListener('resize', () => {
+  sizeCanvas(c1);
+  sizeCanvas(c3);
+});
+</script>
+</body>
+</html>

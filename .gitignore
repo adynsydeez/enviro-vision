@@ -43,6 +43,12 @@ Thumbs.db
 # IDEs
 .vscode/
 .idea/
+
+# Claude Code tooling
+.superpowers/
+
+# Git worktrees
+.worktrees/
 *.swp
 *.swo
 

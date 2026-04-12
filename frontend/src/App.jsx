@@ -1,57 +1,29 @@
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import { useEffect, useRef, useState } from "react";
+import { useState } from 'react';
+import LandingPage from './LandingPage';
+import MapView from './MapView';
+import QuizPage from './components/QuizPage';
 
-function App() {
-  const zoomRef = useRef(20);
+export default function App() {
+  const [scenario, setScenario] = useState(null);
+  const [view, setView] = useState('home');
 
-  const blueMountainsCoords = [];
-
-  const [mapCenter, setMapCentre] = useState();
-
-  useEffect(() => {
-    console.log("konnichiwassup");
-
-    const yo = document.getElementById("container");
-    console.log(yo);
-  }, []);
-
-  const MapLogger = () => {
-    const map = useMap();
-
-    useEffect(() => {
-      console.log(map.getCenter());
-    }, [map]);
-
-    return null;
+  const handleBack = () => {
+    setScenario(null);
+    setView('home');
   };
 
-  return (
-    <>
-      <h1>wassup</h1>
-      <div style={{ height: "100vh", width: "100%" }}>
-        <MapContainer
-          id="container"
-          center={[-27, 153]}
-          zoom={zoomRef.current}
-          scrollWheelZoom={true}
-          style={{ height: "100%", width: "100%" }}
-        >
-          <MapLogger />
-          <TileLayer
-            attribution="&copy; OpenStreetMap contributors"
-            url="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}.png"
-          />
+  if (scenario) {
+    return <MapView key={scenario.id} scenario={scenario} onBack={handleBack} />;
+  }
+  
+  if (view === 'quiz') {
+    return <QuizPage onBack={() => setView('home')} />;
+  }
 
-          <Marker position={[-27, 153]}>
-            <Popup>
-              A pretty CSS3 popup. <br /> Easily customizable.
-            </Popup>
-          </Marker>
-        </MapContainer>
-      </div>
-    </>
+  return (
+    <LandingPage 
+      onSelect={setScenario} 
+      onStartQuiz={() => setView('quiz')} 
+    />
   );
 }
-
-export default App;
