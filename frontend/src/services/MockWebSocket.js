@@ -61,7 +61,10 @@ export class MockWebSocket {
         vegetationGrid: Array.from(this._vegGrid),
         stats:          this._calcStats(),
       });
-      this._interval = setInterval(() => this._tick_(), TICK_MS);
+      
+      if (!this._paused) {
+        this._interval = setInterval(() => this._tick_(), TICK_MS);
+      }
     }, 80);
   }
 
