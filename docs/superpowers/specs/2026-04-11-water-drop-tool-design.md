@@ -9,10 +9,10 @@ Add a tool palette to the MapView that lets players apply suppression actions di
 
 ## Layout & Visual
 
-A vertical stack of circular buttons on the **right edge of the map**, vertically centred:
+A horizontal row of circular buttons on the **bottom of the map**, horizontally centred:
 
 ```
-position: absolute, top-50%, right: 1rem, translateY(-50%), z-index: 1000
+position: absolute, bottom: 2.5rem, left: 50%, translateX(-50%), z-index: 1000
 ```
 
 - **Active tool:** 56px circle, blue border (`#93c5fd`), outer glow ring (`box-shadow: 0 0 0 4px rgba(59,130,246,.2), 0 4px 16px rgba(59,130,246,.4)`)
@@ -78,7 +78,7 @@ Clamp `x` and `y` to `[0, GRID_SIZE - 1]` before building the 3×3 block.
 MapView
   ├── (existing) FireLayer
   ├── (existing) WindCompass
-  ├── ToolPalette            ← new component (right side overlay)
+  ├── ToolPalette            ← new component (bottom center overlay)
   │     ├── ToolButton       ← reusable circular button
   │     └── CooldownRing     ← SVG countdown ring
   └── MapClickHandler        ← new hook-based component, handles tool clicks on map
