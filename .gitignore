@@ -50,5 +50,5 @@ Thumbs.db
 coverage/
 
 input_data/
-output_data/
+# output_data/
 abs_states/
