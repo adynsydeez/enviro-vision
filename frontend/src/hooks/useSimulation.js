@@ -1,7 +1,15 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { MockWebSocket } from '../services/MockWebSocket';
+import { useEffect, useRef, useState, useCallback } from "react";
+import { MockWebSocket } from "../services/MockWebSocket";
 
-const DEFAULT_STATS = { burning: 0, burned: 0, burnedHa: 0, score: 100, tick: 0, windDir: 0, windSpd: 0 };
+const DEFAULT_STATS = {
+  burning: 0,
+  burned: 0,
+  burnedHa: 0,
+  score: 100,
+  tick: 0,
+  windDir: 0,
+  windSpd: 0,
+};
 
 /**
  * gridRef.current    — Map<"x,y", state>   hot path, no React
@@ -11,14 +19,15 @@ const DEFAULT_STATS = { burning: 0, burned: 0, burnedHa: 0, score: 100, tick: 0,
  *                      Used by FireCanvasLayer to interpolate orange→red.
  */
 export function useSimulation(scenario) {
-  const gridRef    = useRef(new Map());
+  const gridRef = useRef(new Map());
   const burnAgeRef = useRef(new Map());
   const vegGridRef = useRef(null);
-  const wsRef      = useRef(null);
-  const pausedRef  = useRef(true);
+  const elevationGridRef = useRef(null);
+  const wsRef = useRef(null);
+  const pausedRef = useRef(true);
 
-  const [stats,  setStats]  = useState(DEFAULT_STATS);
-  const [status, setStatus] = useState(scenario ? 'connecting' : 'idle');
+  const [stats, setStats] = useState(DEFAULT_STATS);
+  const [status, setStatus] = useState(scenario ? "connecting" : "idle");
   const [paused, setPaused] = useState(true);
 
   useEffect(() => {
@@ -27,23 +36,26 @@ export function useSimulation(scenario) {
     const ws = new MockWebSocket(scenario);
     wsRef.current = ws;
 
-    ws.onopen = () => setStatus('running');
+    ws.onopen = () => setStatus("running");
 
     ws.onmessage = ({ data }) => {
       const msg = JSON.parse(data);
 
-      if (msg.type === 'FULL_SYNC') {
+      if (msg.type === "FULL_SYNC") {
         gridRef.current.clear();
         burnAgeRef.current.clear();
         if (msg.vegetationGrid) {
           vegGridRef.current = new Uint8Array(msg.vegetationGrid);
+        }
+        if (msg.elevationGrid) {
+          elevationGridRef.current = new Float32Array(msg.elevationGrid);
         }
         for (const { x, y, s } of msg.grid) {
           const key = `${x},${y}`;
           gridRef.current.set(key, s);
           if (s === 1) burnAgeRef.current.set(key, 0);
         }
-      } else if (msg.type === 'TICK_UPDATE') {
+      } else if (msg.type === "TICK_UPDATE") {
         const changed = new Set();
 
         for (const { x, y, s } of msg.changes) {
@@ -74,7 +86,7 @@ export function useSimulation(scenario) {
       if (msg.stats) setStats(msg.stats);
     };
 
-    ws.onclose = () => setStatus('closed');
+    ws.onclose = () => setStatus("closed");
 
     return () => ws.close();
   }, [scenario]);
@@ -90,13 +102,25 @@ export function useSimulation(scenario) {
   const togglePause = useCallback(() => {
     const next = !pausedRef.current;
     pausedRef.current = next;
-    wsRef.current?.send(JSON.stringify({ action: next ? 'pause' : 'resume' }));
+    wsRef.current?.send(JSON.stringify({ action: next ? "pause" : "resume" }));
     setPaused(next);
   }, []);
 
   const start = useCallback(() => {
-    wsRef.current?.send(JSON.stringify({ action: 'start' }));
+    wsRef.current?.send(JSON.stringify({ action: "start" }));
   }, []);
 
-  return { gridRef, burnAgeRef, vegGridRef, stats, status, paused, interact, setWind, togglePause, start };
+  return {
+    gridRef,
+    burnAgeRef,
+    vegGridRef,
+    elevationGridRef,
+    stats,
+    status,
+    paused,
+    interact,
+    setWind,
+    togglePause,
+    start,
+  };
 }
