@@ -12,9 +12,15 @@ Users select a Queensland wildfire scenario, then practice suppression strategie
 
 ## Commands
 
+### Unified (repo root)
+```bash
+npm install       # Install root dev tools (concurrently)
+npm run dev       # Start both Backend (8000) and Frontend (5173) simultaneously
+```
+
 ### Frontend (in `frontend/`)
 ```bash
-npm run dev       # Start Vite dev server with HMR
+npm run dev       # Start Vite dev server only
 npm run build     # Production build
 npm run lint      # ESLint
 npm run preview   # Preview production build
@@ -22,8 +28,8 @@ npm run preview   # Preview production build
 
 ### Backend (repo root)
 ```bash
-uvicorn backend.api:app --reload --port 8000   # Start FastAPI dev server
-pip install -r backend/requirements.txt        # Install deps
+uvicorn backend.api:app --reload --port 8000   # Start FastAPI dev server only
+pip install -r backend/requirements.txt        # Install Python deps
 ```
 
 No test framework is configured yet.
