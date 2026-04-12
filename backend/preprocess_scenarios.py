@@ -48,7 +48,7 @@ BFC_TO_VEG_ID = {
     531: 10, 532: 10, 533: 10,
     610: 17, 620: 13, 631: 12, 632: 15, 633: 14, 640: 16,
     700: 22, 800: 19, 910: 23,
-    920: 20, 930: 20, 940: 20, 950: 20, 960: 18,
+    920: 24, 930: 24, 940: 24, 950: 20, 960: 18,
 }
 
 
@@ -89,7 +89,7 @@ def process_scenario(scenario_id, lat, lon, output_dir):
     ex, ey = transformer.transform(df_elev['longitude'].values, df_elev['latitude'].values)
 
     grid_y, grid_x = np.mgrid[
-        y_min:y_max:complex(0, GRID_SIZE),
+        y_max:y_min:complex(0, GRID_SIZE),
         x_min:x_max:complex(0, GRID_SIZE),
     ]
 

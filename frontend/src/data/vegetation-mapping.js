@@ -30,7 +30,7 @@ export const VEGETATION_TYPES = {
   21: { name: 'Plantation',          color: '#6C5580', group: 'other'     },
   22: { name: 'Horticulture',        color: '#EFA600', group: 'other'     },
   23: { name: 'Permanent water',     color: '#02388E', group: 'other'     },
-  24: { name: 'Intermittent water',  color: '#5578CE', group: 'other'     },
+  24: { name: 'Wildland-urban interface', color: '#6D7280', group: 'other' },
 };
 
 // Classification groups — add new groups here to extend the foliage panel
