@@ -255,23 +255,17 @@ export default function MapView({ scenario, onBack }) {
 
   const mascotHook = useMascot(scenario);
   const { isIntroActive, triggerRandom } = mascotHook;
-  const [userPaused, setUserPaused] = useState(false);
   const gameOverTriggered = useRef(false);
   const hasStartedRef = useRef(false);
 
-  // Handle automatic pausing for Mascot intro and trigger ignition
+  // Handle automatic resuming after Mascot intro and trigger ignition
   useEffect(() => {
     if (!isIntroActive && !hasStartedRef.current) {
       start();
+      togglePause(); // to resume, since it starts paused
       hasStartedRef.current = true;
     }
-
-    if (isIntroActive && !paused) {
-      togglePause();
-    } else if (!isIntroActive && paused && !userPaused) {
-      togglePause();
-    }
-  }, [isIntroActive, paused, userPaused, togglePause, start]);
+  }, [isIntroActive, togglePause, start]);
 
   // Reset game over trigger and started flag when simulation restarts
   useEffect(() => {
@@ -306,7 +300,6 @@ export default function MapView({ scenario, onBack }) {
   }, [stats.score, stats.burning, stats.tick, isIntroActive, triggerRandom]);
 
   const handleTogglePause = () => {
-    setUserPaused(!paused);
     togglePause();
   };
 
