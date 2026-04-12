@@ -59,5 +59,9 @@ input_data/
 # output_data/
 abs_states/
 
+# Preprocessed GIS cache (large binary files — regenerate with backend/preprocess_scenarios.py)
+data_processing/output_data/*.npy
+backend/data_processing/output_data/*.npy
+
 # Playwright MCP
 .playwright-mcp/
