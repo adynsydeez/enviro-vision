@@ -15,16 +15,22 @@ from data_processing.fuel_processing import process_fuel
 from data_processing.elevation_processing import process_elevation
 
 class GridFireSimulation:
-    def __init__(self, origin_lon, origin_lat, side_length_m, wind_speed, wind_dir, 
+    def __init__(self, origin_lon, origin_lat, size_m, wind_speed, wind_dir, 
                  cell_res_m=5.0, burn_duration=5):
         """
         Wildfire Simulation with three-pane visualization (Fire, Topo, Veg).
+        States:
+        0: Unburned Fuel
+        1: Burning
+        2: Burned Out
+        3: Control Line / Permanent Barrier (No evaporation)
+        4: Watered / Temporary Barrier (Can dry out)
         """
         self.cell_res_m = cell_res_m
-        self.size = max(20, int(side_length_m / cell_res_m))
+        self.size = max(20, int(size_m / cell_res_m))
         self.origin_lon = origin_lon
         self.origin_lat = origin_lat
-        self.side_length_m = side_length_m
+        self.size_m = size_m
         self.wind_speed = wind_speed
         self.wind_dir = wind_dir
         
@@ -43,9 +49,9 @@ class GridFireSimulation:
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
 
         # 1. RUN DATA PROCESSING AUTOMATICALLY
-        print("\n--- Automating Data Processing ---")
-        process_fuel(self.origin_lon, self.origin_lat, self.side_length_m)
-        process_elevation(self.origin_lon, self.origin_lat, self.side_length_m)
+        print(f"\n--- Processing Data for ({origin_lon}, {origin_lat}) ---")
+        process_fuel(self.origin_lon, self.origin_lat, self.size_m)
+        process_elevation(self.origin_lon, self.origin_lat, self.size_m)
 
         # 2. Determine target metric bounds
         transformer_to_3577 = Transformer.from_crs("EPSG:4326", "EPSG:3577", always_xy=True)
@@ -74,14 +80,14 @@ class GridFireSimulation:
         grid_y, grid_x = np.mgrid[self.y_min:self.y_max:complex(0, self.size), 
                                   self.x_min:self.x_max:complex(0, self.size)]
 
-        print(f"Interpolating {self.size}x{self.size} grid...")
+        print(f"Interpolating {self.size}x{self.size} grid (5m Resolution)...")
         self.flammability = griddata((df_fuel['latitude'], df_fuel['longitude']), df_fuel['flammability'], (grid_y, grid_x), method='nearest', fill_value=0.0)
         self.elevation = griddata((df_elev['y'], df_elev['x']), df_elev['elevation'], (grid_y, grid_x), method='linear', fill_value=np.nanmean(df_elev['elevation']))
 
         self.flammability = np.nan_to_num(self.flammability, nan=0.0)
         self.elevation = np.nan_to_num(self.elevation, nan=np.nanmean(self.elevation))
 
-        # Initialize Water/Break state (3) where flammability is 0
+        # Initialize Permanent Barrier state (3) where flammability is near 0 (water bodies)
         self.state[self.flammability <= 0.01] = 3
 
         # Initial Ignition
@@ -96,73 +102,40 @@ class GridFireSimulation:
         self.state[cy, cx] = 1
         self.burn_time[cy, cx] = self.burn_duration
 
-    def get_snapshot(self):
+    def add_control_line(self, x0, y0, x1, y1, thickness=2.4):
         """
-        Returns a dictionary representing the current simulation state.
-        Useful for pausing and resuming by saving the 'snapshot'.
+        Adds a permanent control line (State 3).
+        Uses distance-to-segment math to ensure solid lines.
+        x0, y0, x1, y1 are in grid cell indices.
         """
-        return {
-            "state": self.state.tolist(),
-            "burn_time": self.burn_time.tolist(),
-            "wind_speed": self.wind_speed,
-            "wind_dir": self.wind_dir
-        }
-
-    def load_snapshot(self, snapshot):
-        """
-        Restores the simulation from a snapshot.
-        """
-        self.state = np.array(snapshot["state"], dtype=np.int8)
-        self.burn_time = np.array(snapshot["burn_time"], dtype=np.int16)
-        self.wind_speed = snapshot.get("wind_speed", self.wind_speed)
-        self.wind_dir = snapshot.get("wind_dir", self.wind_dir)
-
-    def update_grid(self, x, y, new_state, radius=0):
-        """
-        Updates the state of a cell or an area (blob) at (x, y).
-        Returns the list of changed cells.
-        """
-        changes = []
-        if radius <= 0:
-            if 0 <= x < self.size and 0 <= y < self.size:
-                self.state[y, x] = new_state
-                if new_state == 3: # Water/Break
-                    self.burn_time[y, x] = 0
-                changes.append({"x": int(x), "y": int(y), "s": int(new_state)})
-        else:
-            # Apply to a circular area
-            Y, X = np.ogrid[:self.size, :self.size]
-            dist_sq = (X - x)**2 + (Y - y)**2
-            mask = dist_sq <= radius**2
-            
-            y_indices, x_indices = np.where(mask)
-            for yi, xi in zip(y_indices, x_indices):
-                self.state[yi, xi] = new_state
-                if new_state == 3:
-                    self.burn_time[yi, xi] = 0
-                changes.append({"x": int(xi), "y": int(yi), "s": int(new_state)})
+        # Create a grid of indices
+        yy, xx = np.mgrid[:self.size, :self.size]
         
-        return changes
-
-    @property
-    def is_active(self):
-        """Returns True if there is at least one cell currently burning."""
-        return np.any(self.state == 1)
+        # Segment vector
+        ldx, ldy = x1 - x0, y1 - y0
+        llen2 = ldx*ldx + ldy*ldy
+        
+        if llen2 == 0:
+            dist_sq = (xx - x0)**2 + (yy - y0)**2
+        else:
+            # Projection factor clamped to [0, 1]
+            t = np.clip(((xx - x0) * ldx + (yy - y0) * ldy) / llen2, 0, 1)
+            dist_sq = (xx - (x0 + t * ldx))**2 + (yy - (y0 + t * ldy))**2
+            
+        mask = dist_sq <= (thickness / 2.0)**2
+        
+        # Apply to grid: set to state 3 (permanent line)
+        # We only overwrite fuel (0), not active fire (1) or already burned (2)
+        self.state[(mask) & (self.state == 0)] = 3
+        print(f"Added control line from ({x0}, {y0}) to ({x1}, {y1})")
 
     def step(self):
-        changes = []
         math_wind_dir = math.radians(90 - self.wind_dir)
         
         # 1. Aging and Burn-out (State 1 -> 2)
         burning_mask = (self.state == 1)
         self.burn_time[burning_mask] -= 1
-        
-        burned_out_mask = (self.burn_time <= 0) & burning_mask
-        if np.any(burned_out_mask):
-            y_indices, x_indices = np.where(burned_out_mask)
-            for y, x in zip(y_indices, x_indices):
-                changes.append({"x": int(x), "y": int(y), "s": 2})
-            self.state[burned_out_mask] = 2
+        self.state[(self.burn_time <= 0) & burning_mask] = 2
         
         # 2. Fire Spread (State 0 -> 1)
         unburned_mask = (self.state == 0)
@@ -189,16 +162,12 @@ class GridFireSimulation:
                     prob_not_igniting[y_t, x_t] *= (1.0 - neighbor_burning * P)
 
         new_ignitions = (np.random.rand(self.size, self.size) < (1.0 - prob_not_igniting)) & unburned_mask
-        if np.any(new_ignitions):
-            y_indices, x_indices = np.where(new_ignitions)
-            for y, x in zip(y_indices, x_indices):
-                changes.append({"x": int(x), "y": int(y), "s": 1})
-            self.state[new_ignitions] = 1
-            self.burn_time[new_ignitions] = self.burn_duration
-            
-        # 3. Drying (State 3 -> 0)
-        # Wet cells (state 3) with fuel (flammability > 0.01) can dry out if near fire
-        wet_mask = (self.state == 3) & (self.flammability > 0.01)
+        self.state[new_ignitions] = 1
+        self.burn_time[new_ignitions] = self.burn_duration
+        
+        # 3. Drying (State 4 -> 0)
+        # Wet cells (state 4) with fuel (flammability > 0.01) can dry out if near fire
+        wet_mask = (self.state == 4) & (self.flammability > 0.01)
         if np.any(wet_mask):
             near_fire = np.zeros_like(self.state, dtype=bool)
             for dy in [-1, 0, 1]:
@@ -208,25 +177,16 @@ class GridFireSimulation:
                     y_t, x_t = slice(max(0, -dy), min(self.size, self.size - dy)), slice(max(0, -dx), min(self.size, self.size - dx))
                     near_fire[y_t, x_t] |= (self.state[y_n, x_n] == 1)
             
-            # Increment 'heat exposure' for wet cells near fire, decrement if not (cooling down)
-            exposure_mask = wet_mask & near_fire
-            cooling_mask = wet_mask & ~near_fire
-            self.burn_time[exposure_mask] += 1
-            self.burn_time[cooling_mask] = np.maximum(0, self.burn_time[cooling_mask] - 1)
+            # Exposure logic
+            self.burn_time[wet_mask & near_fire] += 1
+            self.burn_time[wet_mask & ~near_fire] = np.maximum(0, self.burn_time[wet_mask & ~near_fire] - 1)
             
-            # If exposure exceeds a limit (2x burn duration), low chance to dry out
             drying_limit = self.burn_duration * 2
-            drying_eligible = exposure_mask & (self.burn_time >= drying_limit)
-            dried_out = drying_eligible & (np.random.rand(self.size, self.size) < 0.1) # 10% chance per tick
+            dried_out = wet_mask & (self.burn_time >= drying_limit) & (np.random.rand(self.size, self.size) < 0.1)
+            self.state[dried_out] = 0
+            self.burn_time[dried_out] = 0
             
-            if np.any(dried_out):
-                y_indices, x_indices = np.where(dried_out)
-                for y, x in zip(y_indices, x_indices):
-                    changes.append({"x": int(x), "y": int(y), "s": 0})
-                self.state[dried_out] = 0
-                self.burn_time[dried_out] = 0
-                
-        return changes
+        return []
 
 def run_simulation_animated():
     presets = {
@@ -247,66 +207,71 @@ def run_simulation_animated():
     if choice in presets:
         p = presets[choice]
         print(f"\nLoading Scenario: {p['name']}...")
-        lon, lat, side_length, ws, wd = p['lon'], p['lat'], p['area'], p['ws'], p['wd']
+        lon, lat, area_side, ws, wd = p['lon'], p['lat'], p['area'], p['ws'], p['wd']
     else:
         print("\n--- Custom Configuration ---")
         try:
             lon = float(input("Longitude (e.g. 153.02): ") or "153.02")
             lat = float(input("Latitude (e.g. -27.47): ") or "-27.47")
-            side_length = float(input("Side length in meters (e.g. 2000): ") or "2000")
+            area_side = float(input("Area side length in meters (e.g. 2000): ") or "2000")
             ws = float(input("Wind speed m/s (e.g. 10): ") or "10")
             wd = float(input("Wind dir deg (0=N, 90=E): ") or "45")
         except:
-            lon, lat, side_length, ws, wd = 153.02, -27.47, 2000, 10, 45
+            lon, lat, area_side, ws, wd = 153.02, -27.47, 2000, 10, 45
 
-    sim = GridFireSimulation(lon, lat, side_length, ws, wd)
+    sim = GridFireSimulation(lon, lat, area_side, ws, wd)
     
-    # 3-Pane Layout
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 6))
-    cmap_fire = ListedColormap(['#2d5a27', '#ff4500', '#2F4F4F', '#1E90FF']) 
+    cmap_fire = ListedColormap(['#2d5a27', '#ff4500', '#2F4F4F', '#3b82f6', '#0ea5e9']) 
     ext = [sim.x_min, sim.x_max, sim.y_min, sim.y_max]
     
-    # Fire Simulation
-    img_fire = ax1.imshow(sim.state, cmap=cmap_fire, vmin=0, vmax=3, origin='lower', extent=ext, interpolation='nearest')
+    img_fire = ax1.imshow(sim.state, cmap=cmap_fire, vmin=0, vmax=4, origin='lower', extent=ext, interpolation='nearest')
     ax1.set_title("Live Fire Spread")
     ax1.set_xlabel("Easting (m)"); ax1.set_ylabel("Northing (m)")
     
-    # Topography
     topo = ax2.imshow(sim.elevation, cmap='terrain', origin='lower', extent=ext)
     plt.colorbar(topo, ax=ax2, label='Elevation (m)')
     ax2.set_title("Topography Context")
-    ax2.set_xlabel("Easting (m)")
     
-    # Vegetation/Flammability
     veg = ax3.imshow(sim.flammability, cmap='YlGn', origin='lower', extent=ext, vmin=0, vmax=1)
-    plt.colorbar(veg, ax=ax3, label='Flammability Index (0-1)')
+    plt.colorbar(veg, ax=ax3, label='Flammability Index')
     ax3.set_title("Fuel Risk (Vegetation)")
-    ax3.set_xlabel("Easting (m)")
 
-    # Unified Legend for Fire
+    # Interactive Click Handling for Control Lines
+    click_points = []
+    def on_click(event):
+        if event.inaxes != ax1: return
+        
+        # Convert metric coordinates back to grid indices
+        gx = int((event.xdata - sim.x_min) / sim.cell_res_m)
+        gy = int((event.ydata - sim.y_min) / sim.cell_res_m)
+        
+        click_points.append((gx, gy))
+        print(f"Click registered at ({gx}, {gy})")
+        
+        if len(click_points) == 2:
+            sim.add_control_line(click_points[0][0], click_points[0][1], click_points[1][0], click_points[1][1])
+            click_points.clear()
+
+    fig.canvas.mpl_connect('button_press_event', on_click)
+
     from matplotlib.patches import Patch
     legend_elements = [
         Patch(facecolor='#2d5a27', label='Fuel'),
         Patch(facecolor='#ff4500', label='Burning'),
         Patch(facecolor='#2F4F4F', label='Burned'),
-        Patch(facecolor='#1E90FF', label='Water/Break')
+        Patch(facecolor='#3b82f6', label='Control Line'),
+        Patch(facecolor='#0ea5e9', label='Watered')
     ]
     ax1.legend(handles=legend_elements, loc='lower left', fontsize='x-small')
-
-    def frame_generator():
-        for frame in range(10000): # High upper limit
-            if not sim.is_active:
-                print(f"Simulation finished at tick {frame}: No fire remaining.")
-                break
-            yield frame
 
     def update(frame):
         sim.step()
         img_fire.set_array(sim.state)
-        ax1.set_title(f"Tick {frame} | Wind: {sim.wind_speed}m/s @ {sim.wind_dir}°")
+        ax1.set_title(f"Tick {frame} | Wind: {sim.wind_speed}m/s @ {sim.wind_dir}°\n(Click twice on map to draw a blocking line)")
         return [img_fire]
 
-    ani = FuncAnimation(fig, update, frames=frame_generator, interval=50, blit=True, repeat=False, cache_frame_data=False)
+    ani = FuncAnimation(fig, update, frames=200, interval=50, blit=True, repeat=False)
     plt.tight_layout(); plt.show()
 
 if __name__ == "__main__":
