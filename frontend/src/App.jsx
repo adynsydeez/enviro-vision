@@ -13,7 +13,7 @@ export default function App() {
   };
 
   if (scenario) {
-    return <MapView scenario={scenario} onBack={handleBack} />;
+    return <MapView key={scenario.id} scenario={scenario} onBack={handleBack} />;
   }
   
   if (view === 'quiz') {

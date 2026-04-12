@@ -15,21 +15,14 @@ export function useSimulation(scenario) {
   const burnAgeRef = useRef(new Map());
   const vegGridRef = useRef(null);
   const wsRef      = useRef(null);
-  const pausedRef  = useRef(false);
+  const pausedRef  = useRef(true);
 
   const [stats,  setStats]  = useState(DEFAULT_STATS);
-  const [status, setStatus] = useState('idle');
-  const [paused, setPaused] = useState(false);
+  const [status, setStatus] = useState(scenario ? 'connecting' : 'idle');
+  const [paused, setPaused] = useState(true);
 
   useEffect(() => {
     if (!scenario) return;
-
-    gridRef.current.clear();
-    burnAgeRef.current.clear();
-    setStats(DEFAULT_STATS);
-    setStatus('connecting');
-    setPaused(false);
-    pausedRef.current = false;
 
     const ws = new MockWebSocket(scenario);
     wsRef.current = ws;
@@ -101,5 +94,9 @@ export function useSimulation(scenario) {
     setPaused(next);
   }, []);
 
-  return { gridRef, burnAgeRef, vegGridRef, stats, status, paused, interact, setWind, togglePause };
+  const start = useCallback(() => {
+    wsRef.current?.send(JSON.stringify({ action: 'start' }));
+  }, []);
+
+  return { gridRef, burnAgeRef, vegGridRef, stats, status, paused, interact, setWind, togglePause, start };
 }

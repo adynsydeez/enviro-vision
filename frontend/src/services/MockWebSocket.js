@@ -39,7 +39,7 @@ export class MockWebSocket {
     this._burnAge   = new Uint8Array(GRID_SIZE * GRID_SIZE);
     this._tick      = 0;
     this._interval  = null;
-    this._paused    = false;
+    this._paused    = true;
     this._windDir   = WIND_DIR;
     this._windSpd   = WIND_SPD;
 
@@ -61,7 +61,10 @@ export class MockWebSocket {
         vegetationGrid: Array.from(this._vegGrid),
         stats:          this._calcStats(),
       });
-      this._interval = setInterval(() => this._tick_(), TICK_MS);
+      
+      if (!this._paused) {
+        this._interval = setInterval(() => this._tick_(), TICK_MS);
+      }
     }, 80);
   }
 
@@ -167,14 +170,15 @@ export class MockWebSocket {
   _i(x, y) { return y * GRID_SIZE + x; }
 
   _seedFire() {
+    const changes = [];
     const cx = Math.floor(GRID_SIZE / 2);
     const cy = Math.floor(GRID_SIZE / 2);
-    const changes = [];
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         const x = cx + dx, y = cy + dy;
         if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
-          this._grid[this._i(x, y)] = 1;
+          const i = this._i(x, y);
+          this._grid[i] = 1;
           changes.push({ x, y, s: 1 });
         }
       }

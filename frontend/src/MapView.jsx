@@ -15,6 +15,8 @@ import WindCanvasLayer from './layers/WindCanvasLayer';
 import ToolPalette from './components/ToolPalette';
 import MapClickHandler from './components/MapClickHandler';
 import ControlLineOverlay from './components/ControlLineOverlay';
+import Mascot from './components/Mascot';
+import { useMascot } from './hooks/useMascot';
 
 // Default wind matches the MockWebSocket constants
 const DEFAULT_WIND_DIR = 45;
@@ -249,8 +251,58 @@ function bearingLabel(deg) {
 export default function MapView({ scenario, onBack }) {
   const risk   = RISK_LEVELS[scenario.risk];
   const bounds = useMemo(() => getBounds(scenario.center, 5), [scenario]);
-  const { gridRef, burnAgeRef, vegGridRef, stats, status, paused, interact, setWind, togglePause } =
+  const { gridRef, burnAgeRef, vegGridRef, stats, status, paused, interact, setWind, togglePause, start } =
     useSimulation(scenario);
+
+  const mascotHook = useMascot(scenario);
+  const { isIntroActive, triggerRandom } = mascotHook;
+  const gameOverTriggered = useRef(false);
+  const hasStartedRef = useRef(false);
+
+  // Handle automatic resuming after Mascot intro and trigger ignition
+  useEffect(() => {
+    if (!isIntroActive && !hasStartedRef.current) {
+      start();
+      togglePause(); // to resume, since it starts paused
+      hasStartedRef.current = true;
+    }
+  }, [isIntroActive, togglePause, start]);
+
+  // Reset game over trigger and started flag when simulation restarts
+  useEffect(() => {
+    if (stats.tick === 0) {
+      gameOverTriggered.current = false;
+      hasStartedRef.current = false;
+    }
+  }, [stats.tick]);
+
+  // Idle triggers
+  useEffect(() => {
+    if (isIntroActive || paused) return;
+
+    const interval = setInterval(() => {
+      triggerRandom('idle');
+    }, 45000);
+
+    return () => clearInterval(interval);
+  }, [isIntroActive, paused, triggerRandom]);
+
+  // Victory/Defeat triggers
+  useEffect(() => {
+    if (isIntroActive || gameOverTriggered.current) return;
+
+    if (stats.score === 0) {
+      triggerRandom('defeat');
+      gameOverTriggered.current = true;
+    } else if (stats.burning === 0 && stats.tick > 100) {
+      triggerRandom('victory');
+      gameOverTriggered.current = true;
+    }
+  }, [stats.score, stats.burning, stats.tick, isIntroActive, triggerRandom]);
+
+  const handleTogglePause = () => {
+    togglePause();
+  };
 
   // Which top-level layers are toggled on (Set of layer ids)
   const [activeLayers, setActiveLayers] = useState(new Set(['fire']));
@@ -288,6 +340,7 @@ export default function MapView({ scenario, onBack }) {
     setWindDir(dir);
     setWindSpd(spd);
     setWind(dir, spd);
+    triggerRandom('wind');
   };
 
   const handleToolSelect = (id) => {
@@ -317,7 +370,10 @@ export default function MapView({ scenario, onBack }) {
     }, durationMs);
   };
 
-  const handleWaterDrop = () => startCooldown('water', 3000);
+  const handleWaterDrop = () => {
+    startCooldown('water', 3000);
+    triggerRandom('water');
+  };
 
   const handleControlLineCommit = () => {
     setClPreviewCells(null);
@@ -411,7 +467,7 @@ export default function MapView({ scenario, onBack }) {
             Scenarios
           </button>
           <button
-            onClick={togglePause}
+            onClick={handleTogglePause}
             title={paused ? 'Resume simulation' : 'Pause simulation'}
             className="flex items-center gap-1.5 bg-gray-950/85 hover:bg-gray-900/70 border border-gray-700/50 backdrop-blur-md text-white text-sm font-medium px-3 py-2 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
           >
@@ -575,6 +631,7 @@ export default function MapView({ scenario, onBack }) {
           onToolSelect={handleToolSelect}
         />
       )}
+      <Mascot mascotHook={mascotHook} />
     </div>
   );
 }
