@@ -74,13 +74,18 @@ def process_elevation(origin_lon, origin_lat, size_m):
         clipped, transform = mask(src, final_geometry, crop=True, nodata=src.nodata)
         nodata = src.nodata
         elevation_band = clipped[0]
+        src_crs = src.crs
 
     rows, cols = np.where(elevation_band != nodata)
     xs, ys = rasterio.transform.xy(transform, rows, cols)
 
+    # Transform coordinates to Lat/Lon (EPSG:4326)
+    from rasterio.warp import transform as warp_transform
+    lons, lats = warp_transform(src_crs, "EPSG:4326", xs, ys)
+
     df = pd.DataFrame({
-        "longitude": xs,
-        "latitude": ys,
+        "longitude": lons,
+        "latitude": lats,
         "elevation": elevation_band[rows, cols]
     })
 

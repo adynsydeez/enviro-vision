@@ -146,11 +146,12 @@ frontend/design_assets/           UI mockups, design system, fire-viz comparison
 **Backend Simulation Engine (`backend/simulator.py`)**
 - Functional `GridFireSimulation` class with Alexandridis CA model.
 - Integration with local data processing for real fuel and elevation data.
-- Coordinate transformation (EPSG:3577) and grid interpolation.
+- Synchronised coordinate transformation (EPSG:3577) to map lat/lon data onto an accurate metric grid using scipy `griddata`.
 - Matplotlib-based local visualization for debugging.
 
 **Data Processing Pipeline (`backend/data_processing/`)**
 - Fuel and elevation processing from raw GIS data (TIF/DEM) to simulation-ready CSVs.
+- Accurate cropping and reprojection using source CRS and bounding box intersections.
 - Automated downloading of Australian state boundaries (ABS).
 
 ## What Is Not Yet Implemented

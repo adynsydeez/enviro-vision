@@ -71,17 +71,21 @@ class GridFireSimulation:
         df_fuel = pd.read_csv(fuel_path)
         df_elev = pd.read_csv(elev_path)
 
-        # Sync Elevation to Metric
-        transformer_elev = Transformer.from_crs("EPSG:4326", "EPSG:3577", always_xy=True)
-        ex, ey = transformer_elev.transform(df_elev['longitude'].values, df_elev['latitude'].values)
+        # Sync Elevation and Fuel to Metric
+        transformer_to_3577 = Transformer.from_crs("EPSG:4326", "EPSG:3577", always_xy=True)
+        
+        ex, ey = transformer_to_3577.transform(df_elev['longitude'].values, df_elev['latitude'].values)
         df_elev['x'], df_elev['y'] = ex, ey
+        
+        fx, fy = transformer_to_3577.transform(df_fuel['longitude'].values, df_fuel['latitude'].values)
+        df_fuel['x'], df_fuel['y'] = fx, fy
 
         # Create target grid
         grid_y, grid_x = np.mgrid[self.y_min:self.y_max:complex(0, self.size), 
                                   self.x_min:self.x_max:complex(0, self.size)]
 
         print(f"Interpolating {self.size}x{self.size} grid (5m Resolution)...")
-        self.flammability = griddata((df_fuel['latitude'], df_fuel['longitude']), df_fuel['flammability'], (grid_y, grid_x), method='nearest', fill_value=0.0)
+        self.flammability = griddata((df_fuel['y'], df_fuel['x']), df_fuel['flammability'], (grid_y, grid_x), method='nearest', fill_value=0.0)
         self.elevation = griddata((df_elev['y'], df_elev['x']), df_elev['elevation'], (grid_y, grid_x), method='linear', fill_value=np.nanmean(df_elev['elevation']))
 
         self.flammability = np.nan_to_num(self.flammability, nan=0.0)
