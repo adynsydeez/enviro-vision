@@ -22,8 +22,8 @@ npm run preview   # Preview production build
 
 ### Backend (repo root)
 ```bash
-uvicorn api:app --reload --port 8000   # Start FastAPI dev server
-pip install fastapi uvicorn            # Install deps if needed
+uvicorn backend.api:app --reload --port 8000   # Start FastAPI dev server
+pip install -r backend/requirements.txt        # Install deps
 ```
 
 No test framework is configured yet.
@@ -58,7 +58,17 @@ frontend/src/
     vegetation-mapping.js         24 vegetation types across 4 classification groups
   utils/
     geo.js                        Lat/lng bounds from center + radius in km, cell conversion
-api.py                            FastAPI backend (stub — only GET / endpoint exists)
+backend/
+  api.py                          FastAPI backend (stub — only GET / endpoint exists)
+  simulator.py                    Core GridFireSimulation engine (Alexandridis CA)
+  requirements.txt                Python dependencies (numpy, pandas, rasterio, etc.)
+  data_processing/
+    fuel_processing.py            TIF-based flammability mapping
+    elevation_processing.py       SRTM-based elevation extraction
+    output_data/                  Cached CSVs for simulation grid
+  abs_states/                     Australian state boundary shapefiles
+  routers/                        API router stubs (users.py)
+  services/                       Background services (ai_quiz.py stub)
 docs/superpowers/                 Implementation plans and design specs
 frontend/design_assets/           UI mockups, design system, fire-viz comparison
 ```
@@ -127,14 +137,25 @@ frontend/design_assets/           UI mockups, design system, fire-viz comparison
 - Stats: burning, burned, burnedHa, score, tick, wind
 - Methods: pause/resume, setWind, interact (tool + GPS coords)
 
+**Backend Simulation Engine (`backend/simulator.py`)**
+- Functional `GridFireSimulation` class with Alexandridis CA model.
+- Integration with local data processing for real fuel and elevation data.
+- Coordinate transformation (EPSG:3577) and grid interpolation.
+- Matplotlib-based local visualization for debugging.
+
+**Data Processing Pipeline (`backend/data_processing/`)**
+- Fuel and elevation processing from raw GIS data (TIF/DEM) to simulation-ready CSVs.
+- Automated downloading of Australian state boundaries (ABS).
+
 ## What Is Not Yet Implemented
 
-- FastAPI backend (api.py is a 7-line stub; all simulation runs in MockWebSocket)
+- FastAPI backend integration (api.py is a stub; frontend still uses MockWebSocket)
 - SQLite storage (scenarios table, leaderboard)
-- Real WebSocket synchronisation with backend
+- Real WebSocket synchronisation between frontend and backend
 - Atmospheric sliders (temp 0–50°C, humidity 0–100%) — wind only is live
 - Leaderboard screen
 - Real backend-driven tool effects
+- AI Quiz generation service (`ai_quiz.py` is empty)
 
 ## Simulation Model (Alexandridis CA)
 
