@@ -1,7 +1,9 @@
 from dataclasses import dataclass, asdict
 from typing import Literal
 import numpy as np
-import time
+import base64
+import zlib
+
 
 # ── Cell state encoding ───────────────────────────────────────────────────────
 # Kept as single integers to minimise payload size
@@ -58,47 +60,58 @@ class EnvFrame:
     wind_dir:    float = 0.0
 
 
-def build_init_frame(sim, scenario_id: int) -> dict:
-    return asdict(InitFrame(
-        scenario_id  = scenario_id,
-        grid_size    = sim.size,
-        cell_res_m   = sim.cell_res_m,          # Now set directly, not derived
-        origin_lon   = sim.origin_lon,
-        origin_lat   = sim.origin_lat,
-        # Metric bounds for frontend coordinate mapping
-        x_min        = sim.x_min,
-        x_max        = sim.x_max,
-        y_min        = sim.y_min,
-        y_max        = sim.y_max,
-        elevation    = sim.elevation.flatten().round(1).tolist(),
-        flammability = sim.flammability.flatten().round(3).tolist(),
-        state        = sim.state.flatten().tolist(),
-        wind_speed   = sim.wind_speed,
-        wind_dir     = sim.wind_dir,
-    ))
+def _encode_array_f32(arr: np.ndarray) -> str:
+    """Flatten → float32 → zlib compress → base64 encode."""
+    raw = arr.flatten().astype(np.float32).tobytes()
+    return base64.b64encode(zlib.compress(raw, level=6)).decode()
 
+def _encode_array_i8(arr: np.ndarray) -> str:
+    """Flatten → int8 → zlib compress → base64 encode."""
+    raw = arr.flatten().astype(np.int8).tobytes()
+    return base64.b64encode(zlib.compress(raw, level=6)).decode()
+
+def build_init_frame(sim, scenario_id: int) -> dict:
+    return {
+        "type":         "init",
+        "scenario_id":  scenario_id,
+        "grid_size":    sim.size,
+        "cell_res_m":   sim.cell_res_m,
+        "origin_lon":   sim.origin_lon,
+        "origin_lat":   sim.origin_lat,
+        "x_min":        sim.x_min,
+        "x_max":        sim.x_max,
+        "y_min":        sim.y_min,
+        "y_max":        sim.y_max,
+        "wind_speed":   sim.wind_speed,
+        "wind_dir":     sim.wind_dir,
+        # Compressed binary arrays
+        "encoding":     "zlib+base64",
+        "dtype_state":        "int8",
+        "dtype_elevation":    "float32",
+        "dtype_flammability": "float32",
+        "state":        _encode_array_i8(sim.state),
+        "elevation":    _encode_array_f32(sim.elevation),
+        "flammability": _encode_array_f32(sim.flammability),
+    }
 
 def build_tick_frame(sim, tick: int, seconds_per_tick: int = 60) -> dict:
-    """
-    step() no longer returns changes — diff the state ourselves.
-    Call this AFTER sim.step() has been called.
-    """
     total        = sim.size * sim.size
     burned_count = int(np.sum(sim.state == 2))
     burning      = int(np.sum(sim.state == 1))
     watered      = int(np.sum(sim.state == 4))
     control      = int(np.sum(sim.state == 3))
 
-    return asdict(TickFrame(
-        tick          = tick,
-        state         = sim.state.flatten().tolist(),  # Full state — step() no longer returns deltas
-        burning_count = burning,
-        burned_count  = burned_count,
-        watered_count = watered,
-        control_count = control,
-        burned_pct    = round(burned_count / total * 100, 2),
-        active_fire   = burning > 0,
-        sim_time_s    = tick * seconds_per_tick,
-    ))
-
-
+    return {
+        "type":          "tick",
+        "tick":          tick,
+        "encoding":      "zlib+base64",
+        "dtype_state":   "int8",
+        "state":         _encode_array_i8(sim.state),
+        "burning_count": burning,
+        "burned_count":  burned_count,
+        "watered_count": watered,
+        "control_count": control,
+        "burned_pct":    round(burned_count / total * 100, 2),
+        "active_fire":   burning > 0,
+        "sim_time_s":    tick * seconds_per_tick,
+    }

@@ -1,13 +1,13 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 from typing import Optional
 import numpy as np
 import threading
 import asyncio
-from simulator_helper import build_env_frame, build_init_frame, build_status_frame, build_tick_frame
+from simulator_helper import build_init_frame, build_tick_frame
 from simulator import GridFireSimulation
-from websocket import WebSocket, WebSocketDisconnect
 import json
+from services.ai_quiz import education_router
 
 app = FastAPI(title="Bushfire Simulation API")
 simulation_router = APIRouter(prefix="/simulation", tags=["simulation"])
@@ -188,36 +188,11 @@ async def stream_simulation(
                 elif cmd == "resume":
                     paused = False
 
-                elif cmd == "stop":
-                    await websocket.send_json(build_status_frame(sim, _tick, "stopped", "Client requested stop"))
-                    break
 
                 elif cmd == "set_interval":
                     interval = max(0.05, msg.get("ms", interval * 1000) / 1000.0)
 
-                # ── New: interaction commands now handled via WebSocket ────────
-                # Replaces the need for separate REST calls mid-simulation,
-                # keeping interaction and state in sync with the tick loop.
-                elif cmd == "water_drop":
-                    x, y   = msg["x"], msg["y"]
-                    radius = msg.get("radius", 3)
-                    with _sim_lock:
-                        sim.add_water_drop(x, y, radius)
-                    await websocket.send_json(build_interact_frame(sim, _tick, "water_drop"))
-
-                elif cmd == "control_line":
-                    x0, y0 = msg["x0"], msg["y0"]
-                    x1, y1 = msg["x1"], msg["y1"]
-                    thickness = msg.get("thickness", 2.4)
-                    with _sim_lock:
-                        sim.add_control_line(x0, y0, x1, y1, thickness)
-                    await websocket.send_json(build_interact_frame(sim, _tick, "control_line"))
-
-                elif cmd == "env":
-                    with _sim_lock:
-                        if "wind_speed" in msg: sim.wind_speed = msg["wind_speed"]
-                        if "wind_dir"   in msg: sim.wind_dir   = msg["wind_dir"]
-                    await websocket.send_json(build_env_frame(sim, _tick))
+    
 
             except asyncio.TimeoutError:
                 pass
@@ -235,13 +210,6 @@ async def stream_simulation(
             frame = build_tick_frame(sim, _tick)            # builder now diffs state internally
             await websocket.send_json(frame)
 
-            if not frame["active_fire"]:
-                await websocket.send_json(build_status_frame(sim, _tick, "complete", "Fire extinguished"))
-                break
-
-            if max_ticks > 0 and _tick >= max_ticks:
-                await websocket.send_json(build_status_frame(sim, _tick, "max_ticks", f"Reached {max_ticks} tick limit"))
-                break
 
             await asyncio.sleep(interval)
 
@@ -249,3 +217,4 @@ async def stream_simulation(
         pass
 
 app.include_router(simulation_router)
+app.include_router(education_router)
