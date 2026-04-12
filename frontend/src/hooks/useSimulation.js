@@ -15,11 +15,11 @@ export function useSimulation(scenario) {
   const burnAgeRef = useRef(new Map());
   const vegGridRef = useRef(null);
   const wsRef      = useRef(null);
-  const pausedRef  = useRef(false);
+  const pausedRef  = useRef(true);
 
   const [stats,  setStats]  = useState(DEFAULT_STATS);
   const [status, setStatus] = useState(scenario ? 'connecting' : 'idle');
-  const [paused, setPaused] = useState(false);
+  const [paused, setPaused] = useState(true);
 
   useEffect(() => {
     if (!scenario) return;

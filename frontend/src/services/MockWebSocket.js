@@ -39,7 +39,7 @@ export class MockWebSocket {
     this._burnAge   = new Uint8Array(GRID_SIZE * GRID_SIZE);
     this._tick      = 0;
     this._interval  = null;
-    this._paused    = false;
+    this._paused    = true;
     this._windDir   = WIND_DIR;
     this._windSpd   = WIND_SPD;
 
