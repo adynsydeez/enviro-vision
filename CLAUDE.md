@@ -32,18 +32,32 @@ No test framework is configured yet.
 
 ```
 frontend/src/
-  App.jsx                         Route between LandingPage and MapView
+  App.jsx                         Route between LandingPage, MapView, and QuizPage
   LandingPage.jsx                 Scenario selection with Grid/Map toggle, ember animation
-  MapView.jsx                     Full-screen Leaflet map, satellite, canvas layers
+  MapView.jsx                     Full-screen Leaflet map, satellite, canvas layers, UI overlays
   ScenarioMapView.jsx             QLD overview map with all 6 scenario pins + popup cards
-  hooks/useSimulation.js          WebSocket (or MockWebSocket) state management
-  services/MockWebSocket.js       Client-side Alexandridis CA simulation (production-ready)
-  layers/BaseCanvasLayer.js       L.Layer subclass with rAF render loop
-  layers/FireCanvasLayer.js       Fire cells + ember particle system
-  layers/VegetationCanvasLayer.js Vegetation overlay with hover tooltips
-  data/scenarios.js               6 QLD scenarios with coords, images, risk levels
-  data/vegetation-mapping.js      24 vegetation types across 4 classification groups
-  utils/geo.js                    Lat/lng bounds from center + radius in km
+  components/
+    ControlLineOverlay.jsx        Canvas preview for pending control lines (start → cursor)
+    MapClickHandler.jsx           Handles tool interactions (click/drag) and cell rasterisation
+    Mascot.jsx                    Interactive character with speech bubbles and intro sequences
+    MascotBubble.jsx              Simple speech bubble component for static messages
+    QuizPage.jsx                  10-question educational quiz with mascot feedback
+    ToolPalette.jsx               Floating sidebar for suppression tools (Water, Control, etc.)
+  hooks/
+    useMascot.js                  Mascot state management, intro sequences, random dialogue
+    useSimulation.js              WebSocket (or MockWebSocket) state management
+  services/
+    MockWebSocket.js              Client-side Alexandridis CA simulation (production-ready)
+  layers/
+    BaseCanvasLayer.js            L.Layer subclass with rAF render loop
+    FireCanvasLayer.js            Fire cells + ember particle system
+    VegetationCanvasLayer.js      Vegetation overlay with hover tooltips
+  data/
+    quiz-questions.js             Pool of wildfire educational questions and facts
+    scenarios.js                  6 QLD scenarios with coords, images, risk levels, dialogue
+    vegetation-mapping.js         24 vegetation types across 4 classification groups
+  utils/
+    geo.js                        Lat/lng bounds from center + radius in km, cell conversion
 api.py                            FastAPI backend (stub — only GET / endpoint exists)
 docs/superpowers/                 Implementation plans and design specs
 frontend/design_assets/           UI mockups, design system, fire-viz comparison
@@ -80,6 +94,18 @@ frontend/design_assets/           UI mockups, design system, fire-viz comparison
 - Wind compass + speed slider (0–100 km/h)
 - Live stats panel (burning cells, burned ha, tick, score)
 - Pause/resume, visual effects toggle
+- **Mascot Integration:** Intro sequences and triggered dialogue per scenario
+- **Tool Palette:** Sidebar for arming suppression tools
+
+**Interactive Tools (`ToolPalette.jsx` / `MapClickHandler.jsx`)**
+- **Water Drop:** 5×5 circular suppression (radius 3), 3s cooldown
+- **Control Line:** Two-click placement, max 30 cells, 10s cooldown. Includes `ControlLineOverlay` for canvas preview during placement.
+- **Backburn/Evac:** UI stubs in palette (locked/coming soon).
+
+**Mascot & Education (`Mascot.jsx` / `QuizPage.jsx`)**
+- **Intro Sequences:** Animated intro dialogue on scenario launch.
+- **Dynamic Dialogue:** Random "General", "Success", or "Failure" messages based on simulation state.
+- **Wildfire Quiz:** 10-question randomized quiz with facts and performance badges.
 
 **Canvas layers**
 - `BaseCanvasLayer.js` — rAF loop, resize handling, proper cleanup
@@ -105,11 +131,10 @@ frontend/design_assets/           UI mockups, design system, fire-viz comparison
 
 - FastAPI backend (api.py is a 7-line stub; all simulation runs in MockWebSocket)
 - SQLite storage (scenarios table, leaderboard)
-- Water drop / control line / backburn tools wired to real backend
 - Real WebSocket synchronisation with backend
 - Atmospheric sliders (temp 0–50°C, humidity 0–100%) — wind only is live
-- Tool palette UI (Water Drop, Control Line, Backburn, Evac Zone)
 - Leaderboard screen
+- Real backend-driven tool effects
 
 ## Simulation Model (Alexandridis CA)
 
