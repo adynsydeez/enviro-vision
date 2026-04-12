@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { MockWebSocket } from '../services/MockWebSocket';
 
 const DEFAULT_STATS = { burning: 0, burned: 0, burnedHa: 0, score: 100, tick: 0, windDir: 0, windSpd: 0 };
+
+const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
 
 /**
  * gridRef.current    — Map<"x,y", state>   hot path, no React
  * burnAgeRef.current — Map<"x,y", number>  ticks a cell has been burning
  *                      incremented each tick for every burning cell that
  *                      didn't appear in changes (i.e. kept burning).
- *                      Used by FireCanvasLayer to interpolate orange→red.
+ *                      Used by FireCanvasLayer to interpolate orange->red.
  */
 export function useSimulation(scenario) {
   const gridRef    = useRef(new Map());
@@ -24,7 +25,7 @@ export function useSimulation(scenario) {
   useEffect(() => {
     if (!scenario) return;
 
-    const ws = new MockWebSocket(scenario);
+    const ws = new WebSocket(`${WS_URL}/ws/simulation/${scenario.id}`);
     wsRef.current = ws;
 
     ws.onopen = () => setStatus('running');
@@ -74,6 +75,7 @@ export function useSimulation(scenario) {
       if (msg.stats) setStats(msg.stats);
     };
 
+    ws.onerror = () => setStatus('error');
     ws.onclose = () => setStatus('closed');
 
     return () => ws.close();
@@ -84,7 +86,7 @@ export function useSimulation(scenario) {
   }, []);
 
   const setWind = useCallback((dir, spd) => {
-    wsRef.current?.setWind(dir, spd);
+    wsRef.current?.send(JSON.stringify({ action: 'setWind', dir, spd }));
   }, []);
 
   const togglePause = useCallback(() => {

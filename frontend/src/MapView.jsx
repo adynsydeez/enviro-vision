@@ -632,6 +632,16 @@ export default function MapView({ scenario, onBack }) {
         />
       )}
       <Mascot mascotHook={mascotHook} />
+
+      {status === 'connecting' && (
+        <div className="absolute inset-0 z-[2000] bg-gray-950/80 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-gray-900 border border-gray-700/60 rounded-xl p-6 text-center shadow-2xl">
+            <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-white font-semibold text-sm">Loading scenario data…</p>
+            <p className="text-gray-400 text-xs mt-1">{scenario.name}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
