@@ -11,8 +11,15 @@ from pyproj import Transformer
 from scipy.interpolate import griddata
 
 class GridFireSimulation:
-    def __init__(self, size=100, p_base_fire=0.3, burn_duration=5, c_s=2.0, c_w=0.1):
-        self.size = size
+    def __init__(self, origin_lon, origin_lat, size_m, wind_speed, wind_dir, 
+                 grid_size=100, p_base_fire=0.3, burn_duration=5, c_s=2.0, c_w=0.1):
+        self.size = grid_size
+        self.origin_lon = origin_lon
+        self.origin_lat = origin_lat
+        self.size_m = size_m
+        self.wind_speed = wind_speed
+        self.wind_dir = wind_dir
+        
         self.p_base_fire = p_base_fire
         self.burn_duration = burn_duration
         self.c_s = c_s # Slope constant
@@ -20,19 +27,19 @@ class GridFireSimulation:
         
         # Grid Initialization
         # States: 0=Dry, 1=Burning, 2=Burned, 3=Watered
-        self.state = np.zeros((size, size), dtype=int)
-        self.burn_time = np.zeros((size, size), dtype=int)
-        self.elevation = np.zeros((size, size), dtype=float)
-        self.flammability = np.ones((size, size), dtype=float) * 0.5
+        self.state = np.zeros((self.size, self.size), dtype=int)
+        self.burn_time = np.zeros((self.size, self.size), dtype=int)
+        self.elevation = np.zeros((self.size, self.size), dtype=float)
+        self.flammability = np.ones((self.size, self.size), dtype=float) * 0.5
         
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
-        self.cell_res_m = 10.0 # Default, will be calculated from data
+        self.cell_res_m = size_m / self.size
 
         self._load_real_data()
 
     def _load_real_data(self):
-        """Loads processed fuel and elevation CSVs and interpolates onto the grid."""
-        output_data_dir = os.path.join(self.base_dir, "output_data")
+        """Loads processed fuel and elevation CSVs and interpolates onto the grid based on inputs."""
+        output_data_dir = os.path.join(self.base_dir, "data_processing", "output_data")
         fuel_path = os.path.join(output_data_dir, "cropped_fuel_types.csv")
         elev_path = os.path.join(output_data_dir, "cropped_elevation.csv")
 
@@ -45,28 +52,31 @@ class GridFireSimulation:
         df_fuel = pd.read_csv(fuel_path)
         df_elev = pd.read_csv(elev_path)
 
-        # 1. Coordinate Synchronization
-        # Fuel data is in EPSG:3577 (Albers), Elevation is in EPSG:4326 (WGS84)
-        # We'll project elevation to EPSG:3577
-        transformer = Transformer.from_crs("EPSG:4326", "EPSG:3577", always_xy=True)
-        elev_x, elev_y = transformer.transform(df_elev['longitude'].values, df_elev['latitude'].values)
+        # 1. Determine Grid Bounds in Metric CRS (EPSG:3577)
+        transformer_to_3577 = Transformer.from_crs("EPSG:4326", "EPSG:3577", always_xy=True)
+        ox, oy = transformer_to_3577.transform(self.origin_lon, self.origin_lat)
+        
+        half_size = self.size_m / 2
+        x_min, x_max = ox - half_size, ox + half_size
+        y_min, y_max = oy - half_size, oy + half_size
+        
+        print(f"Grid bounds (EPSG:3577): X[{x_min:.1f}, {x_max:.1f}], Y[{y_min:.1f}, {y_max:.1f}]")
+        print(f"Resolution: {self.cell_res_m:.2f}m per cell")
+
+        # 2. Coordinate Synchronization for Elevation (Fuel is already 3577)
+        transformer_elev = Transformer.from_crs("EPSG:4326", "EPSG:3577", always_xy=True)
+        elev_x, elev_y = transformer_elev.transform(df_elev['longitude'].values, df_elev['latitude'].values)
         df_elev['x'] = elev_x
         df_elev['y'] = elev_y
 
-        # 2. Determine Bounding Box (from fuel data as it's the primary risk layer)
-        x_min, x_max = df_fuel['longitude'].min(), df_fuel['longitude'].max()
-        y_min, y_max = df_fuel['latitude'].min(), df_fuel['latitude'].max()
-        
-        self.cell_res_m = (x_max - x_min) / self.size
-        print(f"Grid bounds: X[{x_min:.1f}, {x_max:.1f}], Y[{y_min:.1f}, {y_max:.1f}]")
-        print(f"Calculated resolution: {self.cell_res_m:.2f}m per cell")
-
         # 3. Create Target Grid
+        # complex(0, self.size) ensures exactly self.size points including endpoints
         grid_x, grid_y = np.mgrid[x_min:x_max:complex(0, self.size), 
                                   y_min:y_max:complex(0, self.size)]
 
         # 4. Interpolate Data
         print("Interpolating flammability...")
+        # Fuel CSV 'longitude'/'latitude' are actually Easting/Northing in 3577
         self.flammability = griddata(
             (df_fuel['longitude'], df_fuel['latitude']), 
             df_fuel['flammability'], 
@@ -84,7 +94,7 @@ class GridFireSimulation:
             fill_value=df_elev['elevation'].mean()
         )
 
-        # Handle NaNs from interpolation
+        # Handle NaNs
         self.flammability = np.nan_to_num(self.flammability, nan=0.0)
         self.elevation = np.nan_to_num(self.elevation, nan=np.nanmean(self.elevation))
 
@@ -104,13 +114,12 @@ class GridFireSimulation:
     def calculate_angle(self, dx, dy):
         return math.atan2(-dy, -dx)
 
-    def step(self, wind_speed, wind_dir_deg):
-        """Advances the simulation by one time step."""
-        wind_dir_rad = math.radians(wind_dir_deg)
+    def step(self):
+        """Advances the simulation by one time step using internal wind settings."""
+        wind_dir_rad = math.radians(self.wind_dir)
         next_state = self.state.copy()
         next_burn_time = self.burn_time.copy()
 
-        # Pre-calculate neighbors for efficiency if needed, but for 100x100 simple loop is fine
         for y in range(self.size):
             for x in range(self.size):
                 current_val = self.state[y, x]
@@ -125,13 +134,11 @@ class GridFireSimulation:
                     continue
 
                 if current_val == 0:
-                    # Watered cells or Non-flammable cells don't ignite
                     if self.flammability[y, x] <= 0.01:
                         continue
 
                     prob_not_combusting = 1.0
                     
-                    # Check 8 neighbors
                     for dy in [-1, 0, 1]:
                         for dx in [-1, 0, 1]:
                             if dx == 0 and dy == 0: continue
@@ -141,21 +148,14 @@ class GridFireSimulation:
                                 if self.state[ny, nx] == 1:
                                     dist = self.cell_res_m * (math.sqrt(2) if dx != 0 and dy != 0 else 1.0)
                                     
-                                    # Slope Factor (Ps)
-                                    # Spread is faster uphill (positive slope)
                                     rise = self.elevation[y, x] - self.elevation[ny, nx]
                                     slope_val = rise / dist
                                     M_slope = math.exp(self.c_s * slope_val)
                                     
-                                    # Wind Factor (Pw)
                                     angle_to_neighbor = self.calculate_angle(dx, dy)
-                                    # Alignment: 1 if wind is blowing FROM neighbor TO current cell
                                     alignment = math.cos(wind_dir_rad - angle_to_neighbor)
-                                    M_wind = math.exp(self.c_w * wind_speed * alignment)
+                                    M_wind = math.exp(self.c_w * self.wind_speed * alignment)
                                     
-                                    # Probability of ignition from this neighbor
-                                    # P = P0 * (1+Pveg) * (1+Pden) * Pw * Ps
-                                    # Here flammability covers Pveg/Pden
                                     P_ignite = self.p_base_fire * self.flammability[y, x] * M_slope * M_wind
                                     P_ignite = min(1.0, P_ignite)
                                     
@@ -166,7 +166,6 @@ class GridFireSimulation:
                         next_burn_time[y, x] = self.burn_duration
 
         changes = []
-        # Find changes for the sparse update protocol
         diff_indices = np.where(next_state != self.state)
         for y, x in zip(diff_indices[0], diff_indices[1]):
             changes.append({"x": int(x), "y": int(y), "s": int(next_state[y, x])})
@@ -176,29 +175,31 @@ class GridFireSimulation:
         return changes
 
 def run_simulation_animated():
-    # Use a larger grid for real data
-    sim = GridFireSimulation(size=100, p_base_fire=0.4, burn_duration=5)
-    
+    print("\n--- Simulation Initialization ---")
     try:
-        print("\n--- Simulation Environment Loaded ---")
+        origin_lon = float(input("Enter origin longitude (e.g., 153.02): ") or "153.02")
+        origin_lat = float(input("Enter origin latitude (e.g., -27.47): ") or "-27.47")
+        size_m = float(input("Enter square size in meters (e.g., 5000): ") or "5000")
         wind_speed = float(input("Enter wind speed in m/s (e.g., 10.0): ") or "10.0")
         wind_direction = float(input("Enter wind direction in degrees (0=North, 90=East): ") or "45.0")
     except (ValueError, EOFError):
+        print("Invalid input, using defaults.")
+        origin_lon, origin_lat, size_m = 153.02, -27.47, 5000
         wind_speed, wind_direction = 10.0, 45.0
 
+    sim = GridFireSimulation(origin_lon=origin_lon, origin_lat=origin_lat, size_m=size_m, 
+                             wind_speed=wind_speed, wind_dir=wind_direction, grid_size=100)
+    
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 7))
     
-    # 1. Fire Simulation Plot
-    cmap = ListedColormap(['#2d5a27', '#ff4500', '#2F4F4F', '#1E90FF']) # Green for fuel
+    cmap = ListedColormap(['#2d5a27', '#ff4500', '#2F4F4F', '#1E90FF']) 
     img = ax1.imshow(sim.state, cmap=cmap, vmin=0, vmax=3, interpolation='nearest')
     ax1.set_title("Fire Spread Simulation")
     
-    # 2. Elevation/Topo Plot for context
     topo = ax2.imshow(sim.elevation, cmap='terrain')
     fig.colorbar(topo, ax=ax2, label='Elevation (m)')
     ax2.set_title("Topography Context")
 
-    # Add legend
     from matplotlib.patches import Patch
     legend_elements = [
         Patch(facecolor='#2d5a27', label='Unburned Fuel'),
@@ -209,12 +210,12 @@ def run_simulation_animated():
     ax1.legend(handles=legend_elements, loc='lower left')
 
     def update(frame):
-        changes = sim.step(wind_speed, wind_direction)
+        changes = sim.step()
         img.set_array(sim.state)
-        ax1.set_title(f"Tick {frame} | Wind: {wind_speed}m/s @ {wind_direction}°")
+        ax1.set_title(f"Tick {frame} | Wind: {sim.wind_speed}m/s @ {sim.wind_dir}°")
         return [img]
 
-    ani = FuncAnimation(fig, update, frames=150, interval=100, blit=True, repeat=False)
+    ani = FuncAnimation(fig, update, frames=200, interval=100, blit=True, repeat=False)
     plt.tight_layout()
     plt.show()
 
