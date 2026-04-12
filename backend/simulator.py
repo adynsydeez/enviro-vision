@@ -105,29 +105,33 @@ class GridFireSimulation:
     def add_control_line(self, x0, y0, x1, y1, thickness=2.4):
         """
         Adds a permanent control line (State 3).
-        Uses distance-to-segment math to ensure solid lines.
         x0, y0, x1, y1 are in grid cell indices.
         """
-        # Create a grid of indices
         yy, xx = np.mgrid[:self.size, :self.size]
-        
-        # Segment vector
         ldx, ldy = x1 - x0, y1 - y0
         llen2 = ldx*ldx + ldy*ldy
-        
         if llen2 == 0:
             dist_sq = (xx - x0)**2 + (yy - y0)**2
         else:
-            # Projection factor clamped to [0, 1]
             t = np.clip(((xx - x0) * ldx + (yy - y0) * ldy) / llen2, 0, 1)
             dist_sq = (xx - (x0 + t * ldx))**2 + (yy - (y0 + t * ldy))**2
-            
         mask = dist_sq <= (thickness / 2.0)**2
-        
-        # Apply to grid: set to state 3 (permanent line)
-        # We only overwrite fuel (0), not active fire (1) or already burned (2)
         self.state[(mask) & (self.state == 0)] = 3
         print(f"Added control line from ({x0}, {y0}) to ({x1}, {y1})")
+
+    def add_water_drop(self, x, y, radius=3):
+        """
+        Applies a circular water drop (State 4).
+        x, y are grid cell indices.
+        """
+        yy, xx = np.mgrid[:self.size, :self.size]
+        dist_sq = (xx - x)**2 + (yy - y)**2
+        mask = dist_sq <= radius**2
+        # Water can be dropped on fuel or active fire
+        target_mask = (mask) & ((self.state == 0) | (self.state == 1))
+        self.state[target_mask] = 4
+        self.burn_time[target_mask] = 0 # Reset timer for evaporation logic
+        print(f"Dropped water at ({x}, {y})")
 
     def step(self):
         math_wind_dir = math.radians(90 - self.wind_dir)
@@ -177,10 +181,11 @@ class GridFireSimulation:
                     y_t, x_t = slice(max(0, -dy), min(self.size, self.size - dy)), slice(max(0, -dx), min(self.size, self.size - dx))
                     near_fire[y_t, x_t] |= (self.state[y_n, x_n] == 1)
             
-            # Exposure logic
+            # Exposure logic: Moisture level (using burn_time array) decreases when near fire
             self.burn_time[wet_mask & near_fire] += 1
             self.burn_time[wet_mask & ~near_fire] = np.maximum(0, self.burn_time[wet_mask & ~near_fire] - 1)
             
+            # Drying threshold: moisture evaporates over time, faster if near active fire
             drying_limit = self.burn_duration * 2
             dried_out = wet_mask & (self.burn_time >= drying_limit) & (np.random.rand(self.size, self.size) < 0.1)
             self.state[dried_out] = 0
@@ -237,21 +242,21 @@ def run_simulation_animated():
     plt.colorbar(veg, ax=ax3, label='Flammability Index')
     ax3.set_title("Fuel Risk (Vegetation)")
 
-    # Interactive Click Handling for Control Lines
+    # Interactive Click Handling
     click_points = []
     def on_click(event):
         if event.inaxes != ax1: return
-        
-        # Convert metric coordinates back to grid indices
         gx = int((event.xdata - sim.x_min) / sim.cell_res_m)
         gy = int((event.ydata - sim.y_min) / sim.cell_res_m)
         
-        click_points.append((gx, gy))
-        print(f"Click registered at ({gx}, {gy})")
-        
-        if len(click_points) == 2:
-            sim.add_control_line(click_points[0][0], click_points[0][1], click_points[1][0], click_points[1][1])
+        if event.button == 3: # Right Click for Water Drop
+            sim.add_water_drop(gx, gy)
             click_points.clear()
+        elif event.button == 1: # Left Click for Control Line
+            click_points.append((gx, gy))
+            if len(click_points) == 2:
+                sim.add_control_line(click_points[0][0], click_points[0][1], click_points[1][0], click_points[1][1])
+                click_points.clear()
 
     fig.canvas.mpl_connect('button_press_event', on_click)
 
@@ -268,7 +273,7 @@ def run_simulation_animated():
     def update(frame):
         sim.step()
         img_fire.set_array(sim.state)
-        ax1.set_title(f"Tick {frame} | Wind: {sim.wind_speed}m/s @ {sim.wind_dir}°\n(Click twice on map to draw a blocking line)")
+        ax1.set_title(f"Tick {frame} | Wind: {sim.wind_speed}m/s @ {sim.wind_dir}°\n(Left-Click twice: Line | Right-Click: Water)")
         return [img_fire]
 
     ani = FuncAnimation(fig, update, frames=200, interval=50, blit=True, repeat=False)
