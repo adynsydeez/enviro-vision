@@ -1,25 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Check, X, ArrowRight, RotateCcw, Home } from 'lucide-react';
 import { QUIZ_QUESTIONS, SCORE_STATEMENTS } from '../data/quiz-questions';
 import MascotBubble from './MascotBubble';
 
 export default function QuizPage({ onBack }) {
-  const [shuffled, setShuffled] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [score, setScore] = useState(0);
-  const [selected, setSelected] = useState(null);
-  const [isAnswered, setIsAnswered] = useState(false);
-  const [isFinished, setIsFinished] = useState(false);
-
-  useEffect(() => {
+  const [shuffled, setShuffled] = useState(() => {
     // Fisher-Yates shuffle for better randomization
     const s = [...QUIZ_QUESTIONS];
     for (let i = s.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [s[i], s[j]] = [s[j], s[i]];
     }
-    setShuffled(s.slice(0, 10));
-  }, []);
+    return s.slice(0, 10);
+  });
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [score, setScore] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [isAnswered, setIsAnswered] = useState(false);
+  const [isFinished, setIsFinished] = useState(false);
 
   if (shuffled.length === 0) return null;
 
@@ -63,7 +61,7 @@ export default function QuizPage({ onBack }) {
     else if (score >= 4) msg = SCORE_STATEMENTS.mid;
 
     return (
-      <div className="h-[100svh] w-full flex flex-col items-center justify-center p-4 bg-gray-950 text-white overflow-hidden relative">
+      <div className="min-h-[100svh] w-full flex flex-col items-center justify-center p-4 bg-gray-950 text-white relative py-12 md:py-4">
         <div className="flex flex-col items-center w-full max-w-2xl text-center shrink-0">
           <div className="relative z-10 mb-4">
             <h2 className="text-3xl md:text-4xl font-bold mb-1">Quiz Complete!</h2>
@@ -86,8 +84,8 @@ export default function QuizPage({ onBack }) {
   }
 
   return (
-    <div className="h-[100svh] w-full flex flex-col items-center p-4 bg-gray-950 text-white overflow-hidden relative">
-      <div className="flex flex-col items-center w-full max-w-2xl h-full">
+    <div className="min-h-[100svh] w-full flex flex-col items-center p-4 bg-gray-950 text-white relative py-8 md:py-4">
+      <div className="flex flex-col items-center w-full max-w-2xl min-h-full">
         {/* Progress */}
         <div className="relative z-10 w-full mt-4 mb-4 shrink-0">
           <div className="flex justify-between text-[10px] font-bold text-gray-500 mb-1 uppercase tracking-widest">
@@ -99,8 +97,8 @@ export default function QuizPage({ onBack }) {
           </div>
         </div>
 
-        <div className="relative z-10 w-full flex flex-col items-center justify-center flex-1 min-h-0 overflow-hidden">
-          <div className="w-full max-h-full flex flex-col items-center overflow-hidden">
+        <div className="relative z-10 w-full flex flex-col items-center justify-center flex-1 min-h-0">
+          <div className="w-full max-h-full flex flex-col items-center">
             <h2 className="text-xl md:text-2xl font-bold mb-4 leading-tight text-center shrink-0">{current.question}</h2>
             
             <div className="grid grid-cols-1 gap-2 w-full mb-4 shrink-0">
@@ -122,7 +120,7 @@ export default function QuizPage({ onBack }) {
               })}
             </div>
 
-            <div className={`w-full transition-all duration-500 transform shrink-0 ${isAnswered ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95 pointer-events-none h-0 overflow-hidden'}`}>
+            <div className={`w-full transition-all duration-500 transform shrink-0 ${isAnswered ? 'opacity-100 translate-y-0 scale-100 mb-8' : 'opacity-0 translate-y-4 scale-95 pointer-events-none h-0 overflow-hidden'}`}>
               <MascotBubble text={current.fact} />
               <button onClick={handleNext} className="mt-4 w-full flex items-center justify-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-black text-lg transition-all shadow-xl shadow-orange-900/30 cursor-pointer">
                 {currentIndex === 9 ? "View Results" : "Next Question"} <ArrowRight size={20} />
