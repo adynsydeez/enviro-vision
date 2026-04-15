@@ -14,8 +14,8 @@ Users select a Queensland wildfire scenario, then practice suppression strategie
 
 ### Unified (repo root)
 ```bash
-npm install       # Install root dev tools (concurrently)
-npm run dev       # Start both Backend (8000) and Frontend (5173) simultaneously
+npm run install:all   # Install both frontend npm deps and Python deps in one shot
+npm run dev           # Start both Backend (8000) and Frontend (5173) simultaneously
 ```
 
 ### Frontend (in `frontend/`)
@@ -31,6 +31,8 @@ npm run preview   # Preview production build
 uvicorn backend.api:app --reload --port 8000   # Start FastAPI dev server only
 pip install -r backend/requirements.txt        # Install Python deps
 ```
+
+Backend requires `ANTHROPIC_API_KEY` in a `.env` file at repo root for the AI quiz endpoint.
 
 No test framework is configured yet.
 
@@ -58,6 +60,8 @@ frontend/src/
     BaseCanvasLayer.js            L.Layer subclass with rAF render loop
     FireCanvasLayer.js            Fire cells + ember particle system
     VegetationCanvasLayer.js      Vegetation overlay with hover tooltips
+    ElevationCanvasLayer.js       Elevation/topo overlay
+    WindCanvasLayer.js            Wind direction/speed visualisation
   data/
     quiz-questions.js             Pool of wildfire educational questions and facts
     scenarios.js                  6 QLD scenarios with coords, images, risk levels, dialogue
@@ -65,16 +69,18 @@ frontend/src/
   utils/
     geo.js                        Lat/lng bounds from center + radius in km, cell conversion
 backend/
-  api.py                          FastAPI backend (stub — only GET / endpoint exists)
+  api.py                          FastAPI app — WebSocket stream + REST routes for simulation
   simulator.py                    Core GridFireSimulation engine (Alexandridis CA)
+  simulator_helper.py             Frame builders (build_init_frame / build_tick_frame) + zlib+base64 encoding
   requirements.txt                Python dependencies (numpy, pandas, rasterio, etc.)
   data_processing/
     fuel_processing.py            TIF-based flammability mapping
     elevation_processing.py       SRTM-based elevation extraction
-    output_data/                  Cached CSVs for simulation grid
+    output_data/                  Cached CSVs + .npy arrays per scenario (veg_grid, flammability, elevation)
   abs_states/                     Australian state boundary shapefiles
   routers/                        API router stubs (users.py)
-  services/                       Background services (ai_quiz.py stub)
+  services/
+    ai_quiz.py                    /education/quiz endpoint — generates quiz via Anthropic API
 docs/superpowers/                 Implementation plans and design specs
 frontend/design_assets/           UI mockups, design system, fire-viz comparison
 ```
@@ -149,20 +155,29 @@ frontend/design_assets/           UI mockups, design system, fire-viz comparison
 - Synchronised coordinate transformation (EPSG:3577) to map lat/lon data onto an accurate metric grid using scipy `griddata`.
 - Matplotlib-based local visualization for debugging.
 
+**FastAPI Backend (`backend/api.py`)**
+- WebSocket endpoint `/ws/simulation/stream` — streams `init` + `tick` frames; supports `pause`/`resume`/`set_interval` commands
+- REST: `POST /simulation/start`, `POST /simulation/step`, `GET /simulation/state`, `GET /simulation/grid`
+- `POST /simulation/interact` and `PATCH /simulation/env` routes exist but are not yet implemented
+- Global `_sim` + `_sim_lock` — single simulation instance per server process
+
+**AI Quiz (`backend/services/ai_quiz.py`)**
+- `POST /education/quiz` — calls Anthropic API to generate a year-group-tailored bushfire safety quiz
+- Requires `ANTHROPIC_API_KEY` in environment (loaded via `dotenv`)
+
 **Data Processing Pipeline (`backend/data_processing/`)**
-- Fuel and elevation processing from raw GIS data (TIF/DEM) to simulation-ready CSVs.
+- Fuel and elevation processing from raw GIS data (TIF/DEM) to simulation-ready CSVs and `.npy` arrays.
+- Pre-processed `.npy` arrays exist per scenario in `output_data/` (`_veg_grid`, `_flammability`, `_elevation`).
 - Accurate cropping and reprojection using source CRS and bounding box intersections.
 - Automated downloading of Australian state boundaries (ABS).
 
 ## What Is Not Yet Implemented
 
-- FastAPI backend integration (api.py is a stub; frontend still uses MockWebSocket)
+- Frontend WebSocket swap (frontend still uses `MockWebSocket`; backend WS endpoint exists but is not wired up)
+- `POST /simulation/interact` and `PATCH /simulation/env` — routes exist but return empty responses
 - SQLite storage (scenarios table, leaderboard)
-- Real WebSocket synchronisation between frontend and backend
 - Atmospheric sliders (temp 0–50°C, humidity 0–100%) — wind only is live
 - Leaderboard screen
-- Real backend-driven tool effects
-- AI Quiz generation service (`ai_quiz.py` is empty)
 
 ## Simulation Model (Alexandridis CA)
 
@@ -174,18 +189,29 @@ frontend/design_assets/           UI mockups, design system, fire-viz comparison
 
 ## WebSocket Protocol
 
-- `FULL_SYNC` — full grid + stats on connect/reset
-- `TICK_UPDATE` — sparse `{x, y, s}` changes only, every ~500ms
+Frames are JSON. Binary arrays (`state`, `elevation`, `flammability`) are `zlib+base64`-encoded flat arrays.
 
-## Planned API Endpoints (not yet implemented)
+- `init` — sent on connect: `grid_size`, `cell_res_m`, `origin_lon/lat`, metric bounds (`x_min/max`, `y_min/max`), `wind_speed/dir`, compressed `state`/`elevation`/`flammability`
+- `tick` — sent every tick: full compressed `state`, counts (`burning_count`, `burned_count`, `watered_count`, `control_count`), `burned_pct`, `active_fire`, `sim_time_s`
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/api/scenarios` | List scenarios |
-| POST | `/api/simulation/start?scenario_id={id}` | Init/reset simulation |
-| PATCH | `/api/simulation/env` | Update temp/wind/humidity |
-| POST | `/api/simulation/interact` | Apply tool at GPS coords |
-| GET | `/api/leaderboard` | Top 10 scores |
+Client commands (JSON over WebSocket): `{"cmd": "pause"}`, `{"cmd": "resume"}`, `{"cmd": "set_interval", "ms": 200}`
+
+Decoding: `pako.inflate(atob(encoded))` → typed array (`Int8Array` for state, `Float32Array` for elevation/flammability).
+
+## Implemented API Endpoints
+
+| Method | Path | Status |
+|--------|------|--------|
+| WS | `/ws/simulation/stream` | Live |
+| POST | `/simulation/start` | Live |
+| POST | `/simulation/step` | Live |
+| GET | `/simulation/state` | Live |
+| GET | `/simulation/grid` | Live |
+| POST | `/simulation/interact` | Stub (no-op) |
+| PATCH | `/simulation/env` | Stub (no-op) |
+| POST | `/education/quiz` | Live (needs `ANTHROPIC_API_KEY`) |
+| GET | `/api/leaderboard` | Not started |
+| GET | `/api/scenarios` | Not started |
 
 ## Planned SQLite Schema
 
