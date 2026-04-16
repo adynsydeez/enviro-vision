@@ -9,23 +9,25 @@ const USE_MOCK = !API_URL;
  * Unified simulation client.
  *
  * Real backend flow:
- *   1. client.connect(scenario)  → POST /simulation/create, open WebSocket
+ *   1. client.connect(scenario)  → POST /simulation/create (returns session_id)
+ *                                → open WebSocket with ?session_id=<id>
  *   2. WebSocket sends "init" frame automatically
- *   3. client.start()            → POST /simulation/start
+ *   3. client.start()            → POST /simulation/start?session_id=<id>
  *   4. WebSocket streams "tick" frames
  *
- * Mock fallback (when VITE_API_URL is not set):
+ * Mock fallback (when VITE_API_URL is not set, or backend unreachable):
  *   Wraps MockWebSocket and normalises its messages to the canonical protocol.
  *
  * Exposes: onopen, onmessage, onclose callbacks + send(), setWind(), close(), start()
  */
 export class SimulationClient {
   constructor() {
-    this.onopen    = null;
-    this.onmessage = null;
-    this.onclose   = null;
-    this._ws       = null;
-    this._mock     = USE_MOCK;
+    this.onopen     = null;
+    this.onmessage  = null;
+    this.onclose    = null;
+    this._ws        = null;
+    this._mock      = USE_MOCK;
+    this._sessionId = null;
   }
 
   async connect(scenario) {
@@ -41,6 +43,8 @@ export class SimulationClient {
         body:    JSON.stringify({ scenario_id: scenario.id }),
       });
       if (!res.ok) throw new Error(`/simulation/create → ${res.status}`);
+      const data = await res.json();
+      this._sessionId = data.session_id;
     } catch (err) {
       console.warn("Real backend unavailable, falling back to mock:", err.message);
       this._mock = true;
@@ -48,7 +52,7 @@ export class SimulationClient {
       return;
     }
 
-    const ws = new WebSocket(`${WS_URL}/ws/simulation/stream`);
+    const ws = new WebSocket(`${WS_URL}/ws/simulation/stream?session_id=${this._sessionId}`);
     ws.onopen    = () => this.onopen?.();
     ws.onmessage = (e) => this.onmessage?.({ data: e.data });
     ws.onclose   = () => this.onclose?.();
@@ -61,7 +65,7 @@ export class SimulationClient {
       this._ws?.send(JSON.stringify({ action: "start" }));
       return;
     }
-    await fetch(`${API_URL}/simulation/start`, { method: "POST" });
+    await fetch(`${API_URL}/simulation/start?session_id=${this._sessionId}`, { method: "POST" });
   }
 
   send(data) {
