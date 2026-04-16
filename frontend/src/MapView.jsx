@@ -368,13 +368,15 @@ export default function MapView({ scenario, onBack }) {
   const gameOverTriggered = useRef(false);
   const hasStartedRef = useRef(false);
 
-  // Handle automatic resuming after Mascot intro and trigger ignition
+  // Handle automatic resuming after Mascot intro and trigger ignition.
+  // Gate on status === "running" so start() is never called before the
+  // WebSocket handshake completes (real backend needs the session ready).
   useEffect(() => {
-    if (!isIntroActive && !hasStartedRef.current) {
+    if (status === "running" && !isIntroActive && !hasStartedRef.current) {
       hasStartedRef.current = true;
       start().then(() => togglePause()).catch(console.error);
     }
-  }, [isIntroActive, togglePause, start]);
+  }, [status, isIntroActive, togglePause, start]);
 
   // Reset game over trigger and started flag when simulation restarts
   useEffect(() => {

@@ -11,6 +11,8 @@ from fastapi import FastAPI, APIRouter, HTTPException, WebSocket, WebSocketDisco
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+# These imports resolve because uvicorn is started with --app-dir backend,
+# which adds backend/ to sys.path. See package.json "dev" script.
 from simulator_helper import build_init_frame, build_tick_frame
 from simulator import GridFireSimulation
 from services.ai_quiz import education_router

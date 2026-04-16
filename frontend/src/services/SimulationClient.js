@@ -2,7 +2,8 @@
 import { MockWebSocket } from "./MockWebSocket";
 
 const API_URL = import.meta.env.VITE_API_URL;
-const WS_URL  = import.meta.env.VITE_WS_URL;
+// Derive WS URL from API_URL if VITE_WS_URL is absent, so the two vars stay in sync.
+const WS_URL  = import.meta.env.VITE_WS_URL || API_URL?.replace(/^http/, "ws");
 const USE_MOCK = !API_URL;
 
 /**
@@ -65,7 +66,8 @@ export class SimulationClient {
       this._ws?.send(JSON.stringify({ action: "start" }));
       return;
     }
-    await fetch(`${API_URL}/simulation/start?session_id=${this._sessionId}`, { method: "POST" });
+    const res = await fetch(`${API_URL}/simulation/start?session_id=${this._sessionId}`, { method: "POST" });
+    if (!res.ok) throw new Error(`/simulation/start → ${res.status}`);
   }
 
   send(data) {

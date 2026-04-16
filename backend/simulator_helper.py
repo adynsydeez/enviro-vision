@@ -46,7 +46,7 @@ def build_tick_frame(sim, tick: int, changes: list, seconds_per_tick: int = 10) 
     watered = int(np.sum(sim.state == 4))
     control = int(np.sum(sim.state == 3))
     burned_ha = round(burned * (sim.cell_res_m ** 2) / 10_000, 2)
-    score = max(0, round(1000 * (1 - burned / total)))
+    score = max(0, round(100 * (1 - burned / total)))
 
     # Flip y so screen y=0 = north, matching the N-up init arrays and frontend
     # canvas convention. Backend row indices use y=0=south; convert here.

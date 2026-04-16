@@ -24,7 +24,9 @@ export default defineConfig({
     reuseExistingServer: true,
     timeout: 30_000,
     env: {
-      // No VITE_API_URL → MockWebSocket fallback path
+      // Force empty to guarantee mock/fallback path regardless of parent env
+      VITE_API_URL: "",
+      VITE_WS_URL: "",
     },
   },
 });
