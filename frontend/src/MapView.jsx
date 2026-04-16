@@ -371,9 +371,8 @@ export default function MapView({ scenario, onBack }) {
   // Handle automatic resuming after Mascot intro and trigger ignition
   useEffect(() => {
     if (!isIntroActive && !hasStartedRef.current) {
-      start();
-      togglePause(); // to resume, since it starts paused
       hasStartedRef.current = true;
+      start().then(() => togglePause()).catch(console.error);
     }
   }, [isIntroActive, togglePause, start]);
 
