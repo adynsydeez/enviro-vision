@@ -298,7 +298,10 @@ def run_simulation_animated():
         elif event.button == 1: # Left Click for Control Line
             click_points.append((gx, gy))
             if len(click_points) == 2:
-                sim.add_control_line(click_points[0][0], click_points[0][1], click_points[1][0], click_points[1][1])
+                sim.add_control_line([
+                    {"x": click_points[0][0], "y": click_points[0][1]},
+                    {"x": click_points[1][0], "y": click_points[1][1]},
+                ])
                 click_points.clear()
 
     fig.canvas.mpl_connect('button_press_event', on_click)
