@@ -84,7 +84,8 @@ class GridFireSimulation:
         target = (self.size, self.size)
         self.veg_grid     = self._ensure_shape(raw_veg,  target, np.uint8,   12)
         self.flammability = self._ensure_shape(raw_flam, target, np.float32, 0.0)
-        self.elevation    = self._ensure_shape(raw_elev, target, np.float32, float(np.nanmean(raw_elev)))
+        elev_fill = float(np.nanmean(raw_elev)) if not np.all(np.isnan(raw_elev)) else 0.0
+        self.elevation    = self._ensure_shape(raw_elev, target, np.float32, elev_fill)
 
         # Permanent barriers where flammability ≈ 0 (water bodies)
         self.state[self.flammability <= 0.01] = 3
@@ -267,7 +268,7 @@ def run_simulation_animated():
         except:
             lon, lat, area_side, ws, wd = 153.02, -27.47, 2000, 10, 45
 
-    sim = GridFireSimulation(lon, lat, area_side, ws, wd)
+    sim = GridFireSimulation("custom", lon, lat, wind_speed=ws, wind_dir=wd, size_m=area_side)
     
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 6))
     cmap_fire = ListedColormap(['#2d5a27', '#ff4500', '#2F4F4F', '#3b82f6', '#0ea5e9']) 
