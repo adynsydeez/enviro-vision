@@ -1,169 +1,132 @@
+# backend/api.py
 from fastapi import FastAPI, APIRouter, HTTPException, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional
 import numpy as np
 import threading
 import asyncio
+import json
 from simulator_helper import build_init_frame, build_tick_frame
 from simulator import GridFireSimulation
-import json
 from services.ai_quiz import education_router
 
 app = FastAPI(title="Bushfire Simulation API")
 simulation_router = APIRouter(prefix="/simulation", tags=["simulation"])
 
-# ── Global Simulation State 
-_sim: Optional[GridFireSimulation] = None
-_sim_lock = threading.Lock()
-_tick: int = 0
+# ── Global simulation state ────────────────────────────────────────────────────
+_sim:      Optional[GridFireSimulation] = None
+_sim_lock  = threading.Lock()
+_tick:     int  = 0
+_started:  bool = False   # True once POST /simulation/start is called
 
-# ── Request / Response Objects
-class StartRequest(BaseModel):
-    origin_lon:    float = Field(153.02, description="Origin longitude")
-    origin_lat:    float = Field(-27.47, description="Origin latitude")
-    size_m:        float = Field(5000.0, description="Grid side length in metres")
-    wind_speed:    float = Field(10.0,   description="Wind speed in m/s")
-    wind_dir:      float = Field(45.0,   description="Wind direction in degrees (0=N, 90=E)")
-    cell_res_m:    float = Field(5.0,    description="Metres per grid cell")
-    burn_duration: int   = Field(5,      description="Ticks a cell stays burning")
 
-class StartResponse(BaseModel):
-    scenario_id: int
-    message:     str
+# ── Scenario metadata (mirrors frontend scenarios.js) ─────────────────────────
+SCENARIO_PRESETS = {
+    "daguilar":              {"lon": 152.8196, "lat": -27.291,  "wind_speed": 10.0, "wind_dir": 45.0},
+    "lamington":             {"lon": 153.1196, "lat": -28.231,  "wind_speed": 12.0, "wind_dir": 90.0},
+    "glass-house-mountains": {"lon": 152.957,  "lat": -26.883,  "wind_speed": 15.0, "wind_dir": 315.0},
+    "bunya-mountains":       {"lon": 151.573,  "lat": -26.871,  "wind_speed": 10.0, "wind_dir": 270.0},
+    "girraween":             {"lon": 151.945,  "lat": -28.889,  "wind_speed": 14.0, "wind_dir": 0.0},
+    "eungella":              {"lon": 148.491,  "lat": -21.132,  "wind_speed": 8.0,  "wind_dir": 180.0},
+}
+
+
+# ── Request / Response models ──────────────────────────────────────────────────
+class CreateRequest(BaseModel):
+    scenario_id: str = "daguilar"
+
+class CreateResponse(BaseModel):
+    status:      str
+    scenario_id: str
     grid_size:   int
     cell_res_m:  float
 
 
-class StepResponse(BaseModel):
-    tick:    int
-    changes: list
-    burned_pct: float
-    burning_pct: float
-    active_fire: bool
-
-class StateResponse(BaseModel):
-    tick:        int
-    grid_size:   int
-    wind_speed:  float
-    wind_dir:    float
-    p_base_fire: float
-    burned_pct:  float
-    burning_pct: float
-    active_fire: bool
-
 def _require_sim() -> GridFireSimulation:
     if _sim is None:
-        raise HTTPException(status_code=400, detail="No simulation running. POST /simulation/start first.")
+        raise HTTPException(status_code=400, detail="No simulation. POST /simulation/create first.")
     return _sim
 
-def _summary(sim: GridFireSimulation, tick: int) -> dict:
-    total = sim.size * sim.size
-    burned  = int(np.sum(sim.state == 2))
-    burning = int(np.sum(sim.state == 1))
-    return {
-        "tick":        tick,
-        "burned_pct":  round(burned  / total * 100, 2),
-        "burning_pct": round(burning / total * 100, 2),
-        "active_fire": burning > 0,
-    }
 
-# ── Routes 
+# ── REST routes ────────────────────────────────────────────────────────────────
 
-@simulation_router.post("/start", response_model=StartResponse)
-async def start_simulation(scenario_id: int, body: StartRequest):
-    """Reset and initialise a new simulation session."""
-    global _sim, _tick
+@simulation_router.post("/create", response_model=CreateResponse)
+async def create_simulation(body: CreateRequest):
+    """Initialise a new simulation for the given scenario. Takes ~2s with .npy cache."""
+    global _sim, _tick, _started
+
+    preset = SCENARIO_PRESETS.get(body.scenario_id)
+    if preset is None:
+        raise HTTPException(status_code=404, detail=f"Unknown scenario_id: {body.scenario_id!r}")
 
     def _init():
         return GridFireSimulation(
-            origin_lon    = body.origin_lon,
-            origin_lat    = body.origin_lat,
-            size_m        = body.size_m,
-            wind_speed    = body.wind_speed,
-            wind_dir      = body.wind_dir,
-            cell_res_m    = body.cell_res_m,
-            burn_duration = body.burn_duration,
+            scenario_id = body.scenario_id,
+            origin_lon  = preset["lon"],
+            origin_lat  = preset["lat"],
+            wind_speed  = preset["wind_speed"],
+            wind_dir    = preset["wind_dir"],
         )
 
     loop = asyncio.get_event_loop()
     try:
         sim = await asyncio.wait_for(
             loop.run_in_executor(None, _init),
-            timeout=120.0       # 2 min ceiling for data download + interpolation
+            timeout=120.0,
         )
     except asyncio.TimeoutError:
-        raise HTTPException(status_code=504, detail="Simulation init timed out — data download took too long.")
+        raise HTTPException(status_code=504, detail="Simulation init timed out.")
 
     with _sim_lock:
-        _sim  = sim
-        _tick = 0
+        _sim      = sim
+        _tick     = 0
+        _started  = False
 
-    return StartResponse(
-        scenario_id = scenario_id,
-        message     = "Simulation initialised.",
-        grid_size   = _sim.size,
-        cell_res_m  = _sim.cell_res_m,
-    )
-
-
-@simulation_router.post("/step", response_model=StepResponse)
-def step_simulation(steps: int = 1):
-    """Advance the simulation by one or more ticks and return cell changes."""
-    global _tick
-    sim = _require_sim()
-
-    with _sim_lock:
-        all_changes = []
-        for _ in range(steps):
-            all_changes.extend(sim.step())
-            _tick += 1
-
-    return StepResponse(changes=all_changes, **_summary(sim, _tick))
-
-
-@simulation_router.post("/interact")
-def interact():
-    """Apply an action (ignite / water) to a region of the grid."""
-    return
-
-
-@simulation_router.patch("/env")
-def update_environment():
-    """Live-update wind speed, wind direction, or base ignition probability."""
-    return
-    
-
-@simulation_router.get("/state", response_model=StateResponse)
-def get_state():
-    """Return current simulation metadata and fire progress summary."""
-    sim = _require_sim()
-    return StateResponse(
+    return CreateResponse(
+        status      = "ready",
+        scenario_id = body.scenario_id,
         grid_size   = sim.size,
-        wind_speed  = sim.wind_speed,
-        wind_dir    = sim.wind_dir,
-        p_base_fire = sim.p_base_fire,
-        **_summary(sim, _tick),
+        cell_res_m  = sim.cell_res_m,
     )
 
 
-@simulation_router.get("/grid")
-def get_grid():
-    """Return the full grid state as a 2D list (use sparingly for large grids)."""
+@simulation_router.post("/start")
+async def start_simulation():
+    """Begin ticking the simulation (called after WS is connected and init frame received)."""
+    global _started
+    _require_sim()
+    _started = True
+    return {"status": "started"}
+
+
+@simulation_router.get("/state")
+def get_state():
     sim = _require_sim()
-    return {"tick": _tick, "grid": sim.state.tolist()}
+    total   = sim.size * sim.size
+    burned  = int(np.sum(sim.state == 2))
+    burning = int(np.sum(sim.state == 1))
+    return {
+        "tick":        _tick,
+        "started":     _started,
+        "grid_size":   sim.size,
+        "wind_speed":  sim.wind_speed,
+        "wind_dir":    sim.wind_dir,
+        "burning":     burning,
+        "burned":      burned,
+        "burned_ha":   round(burned * (sim.cell_res_m ** 2) / 10_000, 2),
+        "active_fire": burning > 0,
+    }
+
+
+# ── WebSocket stream ───────────────────────────────────────────────────────────
 
 @app.websocket("/ws/simulation/stream")
-async def stream_simulation(
-    websocket: WebSocket,
-    scenario_id:      int = 0,
-    tick_interval_ms: int = 200,
-    max_ticks:        int = 500,
-):
-    global _tick
+async def stream_simulation(websocket: WebSocket, tick_interval_ms: int = 200):
+    global _tick, _started
 
     if _sim is None:
         await websocket.accept()
-        await websocket.send_json({"error": "No simulation running. POST /simulation/start first."})
+        await websocket.send_json({"error": "No simulation. POST /simulation/create first."})
         await websocket.close()
         return
 
@@ -172,14 +135,15 @@ async def stream_simulation(
     paused   = False
     interval = tick_interval_ms / 1000.0
 
-    # ── Init frame ────────────────────────────────────────────────────────────
-    await websocket.send_json(build_init_frame(sim, scenario_id))
+    # Send init frame
+    await websocket.send_json(build_init_frame(sim, sim.scenario_id))
 
     try:
         while True:
-            # ── Client commands ───────────────────────────────────────────────
+            # ── Receive client command (non-blocking) ──────────────────────────
             try:
-                msg = json.loads(await asyncio.wait_for(websocket.receive_text(), timeout=0.01))
+                raw = await asyncio.wait_for(websocket.receive_text(), timeout=0.01)
+                msg = json.loads(raw)
                 cmd = msg.get("cmd")
 
                 if cmd == "pause":
@@ -188,33 +152,44 @@ async def stream_simulation(
                 elif cmd == "resume":
                     paused = False
 
-
                 elif cmd == "set_interval":
                     interval = max(0.05, msg.get("ms", interval * 1000) / 1000.0)
 
-    
+                elif cmd == "set_wind":
+                    with _sim_lock:
+                        sim.wind_speed = float(msg.get("speed", sim.wind_speed))
+                        sim.wind_dir   = float(msg.get("dir",   sim.wind_dir))
+
+                elif cmd == "interact":
+                    tool = msg.get("tool")
+                    with _sim_lock:
+                        if tool == "water":
+                            sim.add_water_drop(int(msg["x"]), int(msg["y"]))
+                        elif tool == "control_line":
+                            sim.add_control_line(msg.get("cells", []))
+                        elif tool == "backburn":
+                            sim.add_backburn(int(msg["x"]), int(msg["y"]))
 
             except asyncio.TimeoutError:
                 pass
 
-            if paused:
+            # ── Tick ──────────────────────────────────────────────────────────
+            if not _started or paused:
                 await asyncio.sleep(0.05)
                 continue
 
-            # ── Tick ──────────────────────────────────────────────────────────
             loop = asyncio.get_event_loop()
             with _sim_lock:
-                await loop.run_in_executor(None, sim.step)  # step() returns [] so we discard it
+                changes = await loop.run_in_executor(None, sim.step)
                 _tick += 1
 
-            frame = build_tick_frame(sim, _tick)            # builder now diffs state internally
+            frame = build_tick_frame(sim, _tick, changes)
             await websocket.send_json(frame)
-
-
             await asyncio.sleep(interval)
 
     except WebSocketDisconnect:
         pass
+
 
 app.include_router(simulation_router)
 app.include_router(education_router)
