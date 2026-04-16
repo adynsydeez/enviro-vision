@@ -490,8 +490,9 @@ export default function MapView({ scenario, onBack }) {
   };
 
   useEffect(() => {
+    const timers = cooldownTimers.current;
     return () => {
-      Object.values(cooldownTimers.current).forEach(clearTimeout);
+      Object.values(timers).forEach(clearTimeout);
     };
   }, []);
 

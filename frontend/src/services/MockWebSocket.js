@@ -158,16 +158,6 @@ export class MockWebSocket {
       this.readyState = 1;
       this.onopen?.({ type: "open" });
 
-      // Get scenario bounds from getBounds util (same as MapView does)
-      const center = this._scenario.center; // [-28.231, 153.1196]
-      const halfDeg = 5 / 111; // ~5km in degrees
-      const bounds = {
-        minLat: center[0] - halfDeg,
-        maxLat: center[0] + halfDeg,
-        minLon: center[1] - halfDeg,
-        maxLon: center[1] + halfDeg,
-      };
-
       const elevationGrid = await loadElevationGrid(GRID_SIZE);
 
       this._emit({
