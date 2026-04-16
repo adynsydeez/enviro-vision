@@ -170,12 +170,17 @@ async def stream_simulation(websocket: WebSocket, tick_interval_ms: int = 200):
                 elif cmd == "interact":
                     tool = msg.get("tool")
                     with _sim_lock:
+                        # Frontend uses screen coords (y=0=north); flip to grid coords (y=0=south)
+                        sz = sim.size
                         if tool == "water":
-                            sim.add_water_drop(int(msg["x"]), int(msg["y"]))
+                            y_grid = sz - 1 - int(msg["y"])
+                            sim.add_water_drop(int(msg["x"]), y_grid)
                         elif tool == "control_line":
-                            sim.add_control_line(msg.get("cells", []))
+                            cells = [{"x": int(c["x"]), "y": sz - 1 - int(c["y"])} for c in msg.get("cells", [])]
+                            sim.add_control_line(cells)
                         elif tool == "backburn":
-                            sim.add_backburn(int(msg["x"]), int(msg["y"]))
+                            y_grid = sz - 1 - int(msg["y"])
+                            sim.add_backburn(int(msg["x"]), y_grid)
 
             except asyncio.TimeoutError:
                 pass

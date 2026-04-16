@@ -39,11 +39,14 @@ class GridFireSimulation:
         self.burn_duration = burn_duration
 
         # Grid arrays
-        self.state        = np.zeros((self.size, self.size), dtype=np.int8)
-        self.burn_time    = np.zeros((self.size, self.size), dtype=np.int16)
-        self.elevation    = np.zeros((self.size, self.size), dtype=np.float32)
-        self.flammability = np.zeros((self.size, self.size), dtype=np.float32)
-        self.veg_grid     = np.zeros((self.size, self.size), dtype=np.uint8)
+        self.state             = np.zeros((self.size, self.size), dtype=np.int8)
+        self.burn_time         = np.zeros((self.size, self.size), dtype=np.int16)
+        self.elevation         = np.zeros((self.size, self.size), dtype=np.float32)
+        self.flammability      = np.zeros((self.size, self.size), dtype=np.float32)
+        self.veg_grid          = np.zeros((self.size, self.size), dtype=np.uint8)
+        # Records the pre-water state (0=unburned, 1=burning, 2=burned) for each
+        # watered cell so drying can restore the correct state.
+        self._pre_water_state  = np.zeros((self.size, self.size), dtype=np.int8)
 
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -146,6 +149,8 @@ class GridFireSimulation:
         yy, xx = np.mgrid[:self.size, :self.size]
         dist_sq = (xx - x) ** 2 + (yy - y) ** 2
         mask = (dist_sq <= radius ** 2) & (self.state <= 2)  # unburned, burning, burned
+        # Record pre-water state before overwriting so drying can restore correctly
+        self._pre_water_state[mask] = self.state[mask]
         self.state[mask] = 4
         self.burn_time[mask] = 0
 
@@ -230,7 +235,11 @@ class GridFireSimulation:
 
             drying_limit = self.burn_duration * 2
             dried_out = wet_mask & (self.burn_time >= drying_limit) & (np.random.rand(self.size, self.size) < 0.1)
-            self.state[dried_out] = 0
+            # Restore to burned (2) if cell was burned before watering; otherwise unburned (0).
+            # Burning cells (pre=1) become unburned — water prevents re-ignition.
+            restore = np.where(self._pre_water_state[dried_out] == 2, 2, 0).astype(np.int8)
+            self.state[dried_out] = restore
+            self._pre_water_state[dried_out] = 0
             self.burn_time[dried_out] = 0
 
         # 4. Return sparse deltas

@@ -2,7 +2,7 @@
 import { useEffect, useRef } from 'react';
 import { useMapEvents } from 'react-leaflet';
 import { getBounds, latlngToCell } from '../utils/geo';
-import { GRID_SIZE } from '../services/MockWebSocket';
+import { GRID_SIZE } from '../constants';
 
 const WATER_RADIUS   = 3;  // must match MockWebSocket constant
 const MAX_LINE_CELLS = 30; // max length in cells along longest dimension
@@ -78,7 +78,7 @@ export default function MapClickHandler({
             const cy = Math.max(0, Math.min(GRID_SIZE - 1, y + dy));
             const key = `${cx},${cy}`;
             const cur = gridRef.current.get(key) ?? 0;
-            if (cur === 0 || cur === 1) gridRef.current.set(key, 4);
+            if (cur <= 2) gridRef.current.set(key, 4); // unburned, burning, burned
           }
         }
         interact('water', { x, y });
@@ -103,9 +103,8 @@ export default function MapClickHandler({
           // Optimistic render: write state 3 directly into the grid
           for (const { x: cx, y: cy } of cells) {
             const key = `${cx},${cy}`;
-            if ((gridRef.current.get(key) ?? 0) === 0) {
-              gridRef.current.set(key, 3);
-            }
+            const cur = gridRef.current.get(key) ?? 0;
+            if (cur <= 2) gridRef.current.set(key, 3); // unburned, burning, burned
           }
 
           interact('control_line', { cells });

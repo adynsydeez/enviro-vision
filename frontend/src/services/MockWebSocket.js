@@ -143,9 +143,9 @@ export class MockWebSocket {
 
     this._vegGrid = new Uint8Array(GRID_SIZE * GRID_SIZE);
     this._waterAge = new Uint8Array(GRID_SIZE * GRID_SIZE);
-    this._generateVegetation();
-    this._vegGrid = new Uint8Array(GRID_SIZE * GRID_SIZE);
-    this._waterAge = new Uint8Array(GRID_SIZE * GRID_SIZE);
+    // Pre-water state (0=unburned,1=burning,2=burned) recorded when water is applied,
+    // so evaporation can restore the correct previous state instead of always unburned.
+    this._preWaterState = new Uint8Array(GRID_SIZE * GRID_SIZE);
     this._generateVegetation();
     this._elevationGrid = null;
 
@@ -363,12 +363,14 @@ export class MockWebSocket {
             }
           }
         } else if (state === 4) {
-          // Water evaporation — revert to unburned (s:0) so cells can re-ignite
+          // Water evaporation — restore to pre-water state: burned → burned, others → unburned
           this._waterAge[i]++;
           if (this._waterAge[i] >= WATER_DURATION) {
-            next[i] = 0;
+            const restored = this._preWaterState[i] === 2 ? 2 : 0;
+            next[i] = restored;
             this._waterAge[i] = 0;
-            changes.push({ x, y, s: 0 });
+            this._preWaterState[i] = 0;
+            changes.push({ x, y, s: restored });
           }
         }
       }
@@ -395,6 +397,7 @@ export class MockWebSocket {
           const i = this._i(cx, cy);
           const cur = this._grid[i];
           if (cur <= 2) { // unburned, burning, burned
+            this._preWaterState[i] = cur; // record pre-water state for correct restoration
             this._grid[i] = 4;
             this._waterAge[i] = 0; // reset evaporation timer
             changes.push({ x: cx, y: cy, s: 4 });
