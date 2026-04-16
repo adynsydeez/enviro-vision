@@ -93,7 +93,8 @@ def preprocess_one(scenario_id, origin_lon, origin_lat):
         x_min, x_max, y_min, y_max, method="nearest", fill=0.0,
     ).astype(np.float32)
 
-    fill_elev = float(np.nanmean(df_elev["elevation"].values))
+    elev_vals = df_elev["elevation"].values
+    fill_elev = float(np.nanmean(elev_vals)) if not np.all(np.isnan(elev_vals)) else 0.0
     elevation = interpolate_to_grid(
         (ey, ex), df_elev["elevation"].values,
         x_min, x_max, y_min, y_max, method="linear", fill=fill_elev,

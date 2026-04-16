@@ -18,7 +18,7 @@ import "leaflet/dist/leaflet.css";
 import { RISK_LEVELS } from "./data/scenarios";
 import { getBounds } from "./utils/geo";
 import { useSimulation } from "./hooks/useSimulation";
-import { GRID_SIZE } from "./services/MockWebSocket";
+import { GRID_SIZE } from "./constants";
 import { VEGETATION_TYPES } from "./data/vegetation-mapping";
 import FireCanvasLayer from "./layers/FireCanvasLayer";
 import VegetationCanvasLayer from "./layers/VegetationCanvasLayer";

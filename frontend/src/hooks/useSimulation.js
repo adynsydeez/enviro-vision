@@ -18,6 +18,8 @@ const DEFAULT_STATS = {
 function decodeZlib(b64, TypedArray) {
   const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
   const raw   = pako.inflate(bytes);
+  // pako may return a view into a larger SharedArrayBuffer with a non-zero byteOffset.
+  // Slicing to a fresh buffer ensures TypedArray views (Float32Array etc.) are aligned.
   const buf   = raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength);
   return new TypedArray(buf);
 }

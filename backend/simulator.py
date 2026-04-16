@@ -150,11 +150,14 @@ class GridFireSimulation:
         self.burn_time[mask] = 0
 
     def add_control_line(self, cells: list):
-        """Mark a list of {x, y} cells as permanent control lines (state 3)."""
+        """Mark a list of {x, y} cells as permanent control lines (state 3).
+        Works on unburned (0), burning (1), and burned (2) cells.
+        """
         for cell in cells:
             x, y = int(cell["x"]), int(cell["y"])
-            if 0 <= x < self.size and 0 <= y < self.size and self.state[y, x] == 0:
+            if 0 <= x < self.size and 0 <= y < self.size and self.state[y, x] in (0, 1, 2):
                 self.state[y, x] = 3
+                self.burn_time[y, x] = 0
 
     def add_backburn(self, x: int, y: int, radius: int = 3):
         """Ignite a backburn fire at (x, y) on unburned cells."""

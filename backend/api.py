@@ -1,5 +1,6 @@
 # backend/api.py
 from fastapi import FastAPI, APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 import numpy as np
@@ -11,6 +12,12 @@ from simulator import GridFireSimulation
 from services.ai_quiz import education_router
 
 app = FastAPI(title="Bushfire Simulation API")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 simulation_router = APIRouter(prefix="/simulation", tags=["simulation"])
 
 # ── Global simulation state ────────────────────────────────────────────────────
@@ -68,7 +75,7 @@ async def create_simulation(body: CreateRequest):
             wind_dir    = preset["wind_dir"],
         )
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     try:
         sim = await asyncio.wait_for(
             loop.run_in_executor(None, _init),
@@ -178,7 +185,7 @@ async def stream_simulation(websocket: WebSocket, tick_interval_ms: int = 200):
                 await asyncio.sleep(0.05)
                 continue
 
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             with _sim_lock:
                 changes = await loop.run_in_executor(None, sim.step)
                 _tick += 1

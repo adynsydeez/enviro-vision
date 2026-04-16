@@ -92,6 +92,7 @@ export class SimulationClient {
   // ── Mock normalisation ────────────────────────────────────────────────────
 
   _connectMock(scenario) {
+    this._ws?.close(); // close any existing connection before replacing
     const mock = new MockWebSocket(scenario);
     mock.onopen = () => this.onopen?.();
     mock.onmessage = (e) => {
