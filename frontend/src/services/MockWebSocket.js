@@ -394,7 +394,7 @@ export class MockWebSocket {
           if (cx < 0 || cx >= GRID_SIZE || cy < 0 || cy >= GRID_SIZE) continue;
           const i = this._i(cx, cy);
           const cur = this._grid[i];
-          if (cur === 0 || cur === 1) {
+          if (cur <= 2) { // unburned, burning, burned
             this._grid[i] = 4;
             this._waterAge[i] = 0; // reset evaporation timer
             changes.push({ x: cx, y: cy, s: 4 });

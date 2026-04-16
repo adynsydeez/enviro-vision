@@ -145,7 +145,7 @@ class GridFireSimulation:
         """Apply circular water suppression (state 4) centred at (x, y)."""
         yy, xx = np.mgrid[:self.size, :self.size]
         dist_sq = (xx - x) ** 2 + (yy - y) ** 2
-        mask = (dist_sq <= radius ** 2) & ((self.state == 0) | (self.state == 1))
+        mask = (dist_sq <= radius ** 2) & (self.state <= 2)  # unburned, burning, burned
         self.state[mask] = 4
         self.burn_time[mask] = 0
 
