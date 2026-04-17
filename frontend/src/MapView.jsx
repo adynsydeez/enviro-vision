@@ -369,14 +369,16 @@ export default function MapView({ scenario, onBack }) {
   const hasStartedRef = useRef(false);
 
   // Handle automatic resuming after Mascot intro and trigger ignition.
-  // Gate on status === "running" so start() is never called before the
-  // WebSocket handshake completes (real backend needs the session ready).
+  // start() and togglePause() are safe to call before onopen fires:
+  //   – mock: MockWebSocket.send() ignores readyState
+  //   – real backend: /simulation/start is a REST call independent of the WS
+  // The user takes seconds to dismiss the intro, so the WS is always ready by then.
   useEffect(() => {
-    if (status === "running" && !isIntroActive && !hasStartedRef.current) {
+    if (!isIntroActive && !hasStartedRef.current) {
       hasStartedRef.current = true;
       start().then(() => togglePause()).catch(console.error);
     }
-  }, [status, isIntroActive, togglePause, start]);
+  }, [isIntroActive, togglePause, start]);
 
   // Reset game over trigger and started flag when simulation restarts
   useEffect(() => {

@@ -23,30 +23,43 @@ const USE_MOCK = !API_URL;
  */
 export class SimulationClient {
   constructor() {
-    this.onopen     = null;
-    this.onmessage  = null;
-    this.onclose    = null;
-    this._ws        = null;
-    this._mock      = USE_MOCK;
-    this._sessionId = null;
+    this.onopen          = null;
+    this.onmessage       = null;
+    this.onclose         = null;
+    this._ws             = null;
+    this._mock           = USE_MOCK;
+    this._sessionId      = null;
+    this._connectPromise = null;
+    this._closed         = false;
   }
 
   async connect(scenario) {
+    this._connectPromise = this._doConnect(scenario);
+    await this._connectPromise;
+  }
+
+  async _doConnect(scenario) {
     if (this._mock) {
       this._connectMock(scenario);
       return;
     }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5_000);
 
     try {
       const res = await fetch(`${API_URL}/simulation/create`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ scenario_id: scenario.id }),
+        signal:  controller.signal,
       });
+      clearTimeout(timer);
       if (!res.ok) throw new Error(`/simulation/create → ${res.status}`);
       const data = await res.json();
       this._sessionId = data.session_id;
     } catch (err) {
+      clearTimeout(timer);
       console.warn("Real backend unavailable, falling back to mock:", err.message);
       this._mock = true;
       this._connectMock(scenario);
@@ -61,8 +74,9 @@ export class SimulationClient {
   }
 
   async start() {
+    // Ensure connect() has completed — it may have switched _mock to true on backend failure
+    await this._connectPromise;
     if (this._mock) {
-      // MockWebSocket starts on the "start" action
       this._ws?.send(JSON.stringify({ action: "start" }));
       return;
     }
@@ -92,12 +106,14 @@ export class SimulationClient {
   }
 
   close() {
+    this._closed = true;
     this._ws?.close();
   }
 
   // ── Mock normalisation ────────────────────────────────────────────────────
 
   _connectMock(scenario) {
+    if (this._closed) return; // Abort if this client was already closed (StrictMode cleanup)
     this._ws?.close(); // close any existing connection before replacing
     const mock = new MockWebSocket(scenario);
     mock.onopen = () => this.onopen?.();
