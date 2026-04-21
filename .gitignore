@@ -55,9 +55,10 @@ Thumbs.db
 # coverage (if you add tests later)
 coverage/
 
-input_data/
-# output_data/
-abs_states/
+input_data
+output_data
+abs_states
 
 # Playwright MCP
 .playwright-mcp/
+docs/

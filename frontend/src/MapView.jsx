@@ -18,7 +18,7 @@ import "leaflet/dist/leaflet.css";
 import { RISK_LEVELS } from "./data/scenarios";
 import { getBounds } from "./utils/geo";
 import { useSimulation } from "./hooks/useSimulation";
-import { GRID_SIZE } from "./services/MockWebSocket";
+import { GRID_SIZE } from "./constants";
 import { VEGETATION_TYPES } from "./data/vegetation-mapping";
 import FireCanvasLayer from "./layers/FireCanvasLayer";
 import VegetationCanvasLayer from "./layers/VegetationCanvasLayer";
@@ -368,14 +368,14 @@ export default function MapView({ scenario, onBack }) {
   const gameOverTriggered = useRef(false);
   const hasStartedRef = useRef(false);
 
-  // Handle automatic resuming after Mascot intro and trigger ignition
+  // Kick off the simulation once the intro is dismissed and the connection is open.
+  // paused starts as false (matching the backend), so no togglePause needed here.
   useEffect(() => {
-    if (!isIntroActive && !hasStartedRef.current) {
-      start();
-      togglePause(); // to resume, since it starts paused
+    if (!isIntroActive && status === "running" && !hasStartedRef.current) {
       hasStartedRef.current = true;
+      start().catch(console.error);
     }
-  }, [isIntroActive, togglePause, start]);
+  }, [isIntroActive, status, start]);
 
   // Reset game over trigger and started flag when simulation restarts
   useEffect(() => {
@@ -491,8 +491,9 @@ export default function MapView({ scenario, onBack }) {
   };
 
   useEffect(() => {
+    const timers = cooldownTimers.current;
     return () => {
-      Object.values(cooldownTimers.current).forEach(clearTimeout);
+      Object.values(timers).forEach(clearTimeout);
     };
   }, []);
 
@@ -580,6 +581,7 @@ export default function MapView({ scenario, onBack }) {
             Scenarios
           </button>
           <button
+            data-testid="pause-btn"
             onClick={handleTogglePause}
             title={paused ? "Resume simulation" : "Pause simulation"}
             className="flex items-center gap-1.5 bg-gray-950/85 hover:bg-gray-900/70 border border-gray-700/50 backdrop-blur-md text-white text-sm font-medium px-3 py-2 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
@@ -633,6 +635,7 @@ export default function MapView({ scenario, onBack }) {
               Live Stats
             </span>
             <span
+              data-testid="sim-status"
               className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                 paused
                   ? "bg-blue-950 text-blue-400"
@@ -649,14 +652,14 @@ export default function MapView({ scenario, onBack }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <p className="text-xs text-gray-500 mb-0.5">Burning</p>
-              <p className="text-orange-400 font-bold text-lg leading-none">
+              <p data-testid="stat-burning" className="text-orange-400 font-bold text-lg leading-none">
                 {stats.burning}
               </p>
               <p className="text-gray-600 text-xs">cells</p>
             </div>
             <div>
               <p className="text-xs text-gray-500 mb-0.5">Burned</p>
-              <p className="text-red-400 font-bold text-lg leading-none">
+              <p data-testid="stat-burned" className="text-red-400 font-bold text-lg leading-none">
                 {stats.burned}
               </p>
               <p className="text-gray-600 text-xs">cells</p>
@@ -666,7 +669,7 @@ export default function MapView({ scenario, onBack }) {
                 <Zap size={10} />
                 Tick
               </p>
-              <p className="text-white font-bold text-lg leading-none">
+              <p data-testid="stat-tick" className="text-white font-bold text-lg leading-none">
                 {stats.tick}
               </p>
               <p className="text-gray-600 text-xs">× 500ms</p>
@@ -677,6 +680,7 @@ export default function MapView({ scenario, onBack }) {
                 Score
               </p>
               <p
+                data-testid="stat-score"
                 className={`font-bold text-lg leading-none ${
                   stats.score > 70
                     ? "text-green-400"
@@ -768,7 +772,7 @@ export default function MapView({ scenario, onBack }) {
                   onChange={(e) => handleWindChange(windDir, +e.target.value)}
                   className="w-full accent-orange-500 cursor-pointer"
                 />
-                <p className="text-white font-bold text-sm leading-none mt-0.5">
+                <p data-testid="wind-speed-display" className="text-white font-bold text-sm leading-none mt-0.5">
                   {windSpd}&nbsp;
                   <span className="text-gray-500 font-normal text-xs">
                     km/h

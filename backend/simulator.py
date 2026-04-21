@@ -10,156 +10,198 @@ import os
 from pyproj import Transformer
 from scipy.interpolate import griddata
 
-# Import processing functions
-from data_processing.fuel_processing import process_fuel
-from data_processing.elevation_processing import process_elevation
+from .data_processing.fuel_processing import process_fuel
+from .data_processing.elevation_processing import process_elevation
 
 class GridFireSimulation:
-    def __init__(self, origin_lon, origin_lat, size_m, wind_speed, wind_dir, 
-                 cell_res_m=5.0, burn_duration=5):
+    def __init__(self, scenario_id: str, origin_lon: float, origin_lat: float,
+                 wind_speed: float = 10.0, wind_dir: float = 45.0,
+                 cell_res_m: float = 10.0, size_m: float = 10_000.0,
+                 burn_duration: int = 14):
         """
-        Wildfire Simulation with three-pane visualization (Fire, Topo, Veg).
-        States:
-        0: Unburned Fuel
-        1: Burning
-        2: Burned Out
-        3: Control Line / Permanent Barrier (No evaporation)
-        4: Watered / Temporary Barrier (Can dry out)
+        States: 0=Unburned  1=Burning  2=Burned  3=Control Line  4=Watered
+        Defaults to 1000×1000 cells at 10 m/cell = 10×10 km.
         """
-        self.cell_res_m = cell_res_m
-        self.size = max(20, int(size_m / cell_res_m))
-        self.origin_lon = origin_lon
-        self.origin_lat = origin_lat
-        self.size_m = size_m
-        self.wind_speed = wind_speed
-        self.wind_dir = wind_dir
-        
-        # Alexandridis Coefficients
-        self.a_s = 0.078 
-        self.c_w1 = 0.045 
-        self.c_w2 = 0.131 
+        self.scenario_id  = scenario_id
+        self.cell_res_m   = cell_res_m
+        self.size         = max(20, int(size_m / cell_res_m))
+        self.origin_lon   = origin_lon
+        self.origin_lat   = origin_lat
+        self.size_m       = size_m
+        self.wind_speed   = wind_speed
+        self.wind_dir     = wind_dir
+
+        # Alexandridis coefficients
+        self.a_s  = 0.078
+        self.c_w1 = 0.045
+        self.c_w2 = 0.131
         self.burn_duration = burn_duration
-        
-        # Grid Initialization
-        self.state = np.zeros((self.size, self.size), dtype=np.int8)
-        self.burn_time = np.zeros((self.size, self.size), dtype=np.int16)
-        self.elevation = np.zeros((self.size, self.size), dtype=np.float32)
-        self.flammability = np.zeros((self.size, self.size), dtype=np.float32)
-        
+
+        # Grid arrays
+        self.state             = np.zeros((self.size, self.size), dtype=np.int8)
+        self.burn_time         = np.zeros((self.size, self.size), dtype=np.int16)
+        self.elevation         = np.zeros((self.size, self.size), dtype=np.float32)
+        self.flammability      = np.zeros((self.size, self.size), dtype=np.float32)
+        self.veg_grid          = np.zeros((self.size, self.size), dtype=np.uint8)
+        # Records the pre-water state (0=unburned, 1=burning, 2=burned) for each
+        # watered cell so drying can restore the correct state.
+        self._pre_water_state  = np.zeros((self.size, self.size), dtype=np.int8)
+
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
 
-        # 1. RUN DATA PROCESSING AUTOMATICALLY
-        print(f"\n--- Processing Data for ({origin_lon}, {origin_lat}) ---")
-        process_fuel(self.origin_lon, self.origin_lat, self.size_m)
-        process_elevation(self.origin_lon, self.origin_lat, self.size_m)
+        # Metric bounds (EPSG:3577)
+        transformer = Transformer.from_crs("EPSG:4326", "EPSG:3577", always_xy=True)
+        self.ox, self.oy = transformer.transform(self.origin_lon, self.origin_lat)
+        half = (self.size * self.cell_res_m) / 2
+        self.x_min = self.ox - half
+        self.x_max = self.ox + half
+        self.y_min = self.oy - half
+        self.y_max = self.oy + half
 
-        # 2. Determine target metric bounds
-        transformer_to_3577 = Transformer.from_crs("EPSG:4326", "EPSG:3577", always_xy=True)
-        self.ox, self.oy = transformer_to_3577.transform(self.origin_lon, self.origin_lat)
-        
-        half_size = (self.size * self.cell_res_m) / 2
-        self.x_min, self.x_max = self.ox - half_size, self.ox + half_size
-        self.y_min, self.y_max = self.oy - half_size, self.oy + half_size
+        self._load_data()
 
-        self._load_and_interpolate()
+    def _load_data(self):
+        """Load from .npy cache if available, otherwise process raw TIF data."""
+        output_dir = os.path.join(self.base_dir, "data_processing", "output_data")
+        veg_path  = os.path.join(output_dir, f"{self.scenario_id}_veg_grid.npy")
+        flam_path = os.path.join(output_dir, f"{self.scenario_id}_flammability.npy")
+        elev_path = os.path.join(output_dir, f"{self.scenario_id}_elevation.npy")
 
-    def _load_and_interpolate(self):
-        output_data_dir = os.path.join(self.base_dir, "data_processing", "output_data")
-        fuel_path = os.path.join(output_data_dir, "cropped_fuel_types.csv")
-        elev_path = os.path.join(output_data_dir, "cropped_elevation.csv")
+        if all(os.path.exists(p) for p in [veg_path, flam_path, elev_path]):
+            print(f"[{self.scenario_id}] Loading .npy cache...")
+            raw_veg  = np.load(veg_path)
+            raw_flam = np.load(flam_path)
+            raw_elev = np.load(elev_path)
+        else:
+            print(f"[{self.scenario_id}] No .npy cache — processing from TIF (slow)...")
+            process_fuel(self.origin_lon, self.origin_lat, self.size_m, self.scenario_id)
+            process_elevation(self.origin_lon, self.origin_lat, self.size_m, self.scenario_id)
+            raw_veg, raw_flam, raw_elev = self._interpolate_from_csv()
+            # Save for next time
+            np.save(veg_path,  raw_veg)
+            np.save(flam_path, raw_flam)
+            np.save(elev_path, raw_elev)
+
+        # Resize to self.size if cached arrays have different shape
+        target = (self.size, self.size)
+        self.veg_grid     = self._ensure_shape(raw_veg,  target, np.uint8,   12)
+        self.flammability = self._ensure_shape(raw_flam, target, np.float32, 0.0)
+        elev_fill = float(np.nanmean(raw_elev)) if not np.all(np.isnan(raw_elev)) else 0.0
+        self.elevation    = self._ensure_shape(raw_elev, target, np.float32, elev_fill)
+
+        # Permanent barriers where flammability ≈ 0 (water bodies)
+        self.state[self.flammability <= 0.01] = 3
+
+        # Initial ignition at centre (or nearest flammable cell)
+        cy, cx = self.size // 2, self.size // 2
+        if self.flammability[cy, cx] < 0.1:
+            ys, xs = np.where(self.flammability > 0.1)
+            if len(ys) > 0:
+                dist = (ys - cy) ** 2 + (xs - cx) ** 2
+                idx = np.argmin(dist)
+                cy, cx = int(ys[idx]), int(xs[idx])
+
+        self.state[cy, cx] = 1
+        self.burn_time[cy, cx] = self.burn_duration
+
+    def _ensure_shape(self, arr, target_shape, dtype, fill):
+        """Resize array to target shape if it doesn't match."""
+        if arr.shape == target_shape:
+            return arr.astype(dtype)
+        from scipy.ndimage import zoom
+        factors = (target_shape[0] / arr.shape[0], target_shape[1] / arr.shape[1])
+        resized = zoom(arr.astype(np.float32), factors, order=0)
+        return np.nan_to_num(resized, nan=fill).astype(dtype)
+
+    def _interpolate_from_csv(self):
+        output_dir = os.path.join(self.base_dir, "data_processing", "output_data")
+        fuel_path = os.path.join(output_dir, f"{self.scenario_id}_fuel.csv")
+        elev_path = os.path.join(output_dir, f"{self.scenario_id}_elevation.csv")
 
         df_fuel = pd.read_csv(fuel_path)
         df_elev = pd.read_csv(elev_path)
 
-        # Sync Elevation and Fuel to Metric
-        transformer_to_3577 = Transformer.from_crs("EPSG:4326", "EPSG:3577", always_xy=True)
-        
-        ex, ey = transformer_to_3577.transform(df_elev['longitude'].values, df_elev['latitude'].values)
-        df_elev['x'], df_elev['y'] = ex, ey
-        
-        fx, fy = transformer_to_3577.transform(df_fuel['longitude'].values, df_fuel['latitude'].values)
-        df_fuel['x'], df_fuel['y'] = fx, fy
+        transformer = Transformer.from_crs("EPSG:4326", "EPSG:3577", always_xy=True)
+        fx, fy = transformer.transform(df_fuel["longitude"].values, df_fuel["latitude"].values)
+        ex, ey = transformer.transform(df_elev["longitude"].values, df_elev["latitude"].values)
 
-        # Create target grid
-        grid_y, grid_x = np.mgrid[self.y_min:self.y_max:complex(0, self.size), 
-                                  self.x_min:self.x_max:complex(0, self.size)]
+        grid_y, grid_x = np.mgrid[
+            self.y_min:self.y_max:complex(0, self.size),
+            self.x_min:self.x_max:complex(0, self.size),
+        ]
 
-        print(f"Interpolating {self.size}x{self.size} grid (5m Resolution)...")
-        self.flammability = griddata((df_fuel['y'], df_fuel['x']), df_fuel['flammability'], (grid_y, grid_x), method='nearest', fill_value=0.0)
-        self.elevation = griddata((df_elev['y'], df_elev['x']), df_elev['elevation'], (grid_y, grid_x), method='linear', fill_value=np.nanmean(df_elev['elevation']))
+        veg_grid = griddata((fy, fx), df_fuel["veg_type"].values,   (grid_y, grid_x), method="nearest", fill_value=12).astype(np.uint8)
+        flam     = griddata((fy, fx), df_fuel["flammability"].values, (grid_y, grid_x), method="nearest", fill_value=0.0).astype(np.float32)
+        fill_e   = float(np.nanmean(df_elev["elevation"].values))
+        elev     = griddata((ey, ex), df_elev["elevation"].values,   (grid_y, grid_x), method="linear",  fill_value=fill_e).astype(np.float32)
 
-        self.flammability = np.nan_to_num(self.flammability, nan=0.0)
-        self.elevation = np.nan_to_num(self.elevation, nan=np.nanmean(self.elevation))
+        return (
+            np.nan_to_num(veg_grid, nan=12),
+            np.nan_to_num(flam,     nan=0.0),
+            np.nan_to_num(elev,     nan=fill_e),
+        )
 
-        # Initialize Permanent Barrier state (3) where flammability is near 0 (water bodies)
-        self.state[self.flammability <= 0.01] = 3
+    # ── Tool interactions ──────────────────────────────────────────────────────
 
-        # Initial Ignition
-        cy, cx = self.size // 2, self.size // 2
-        if self.flammability[cy, cx] < 0.1:
-            y_idx, x_idx = np.where(self.flammability > 0.1)
-            if len(y_idx) > 0:
-                dist = (y_idx - cy)**2 + (x_idx - cx)**2
-                idx = np.argmin(dist)
-                cy, cx = y_idx[idx], x_idx[idx]
-        
-        self.state[cy, cx] = 1
-        self.burn_time[cy, cx] = self.burn_duration
-
-    def add_control_line(self, x0, y0, x1, y1, thickness=2.4):
-        """
-        Adds a permanent control line (State 3).
-        x0, y0, x1, y1 are in grid cell indices.
-        """
+    def add_water_drop(self, x: int, y: int, radius: int = 3):
+        """Apply circular water suppression (state 4) centred at (x, y)."""
         yy, xx = np.mgrid[:self.size, :self.size]
-        ldx, ldy = x1 - x0, y1 - y0
-        llen2 = ldx*ldx + ldy*ldy
-        if llen2 == 0:
-            dist_sq = (xx - x0)**2 + (yy - y0)**2
-        else:
-            t = np.clip(((xx - x0) * ldx + (yy - y0) * ldy) / llen2, 0, 1)
-            dist_sq = (xx - (x0 + t * ldx))**2 + (yy - (y0 + t * ldy))**2
-        mask = dist_sq <= (thickness / 2.0)**2
-        self.state[(mask) & (self.state == 0)] = 3
-        print(f"Added control line from ({x0}, {y0}) to ({x1}, {y1})")
+        dist_sq = (xx - x) ** 2 + (yy - y) ** 2
+        mask = (dist_sq <= radius ** 2) & (self.state <= 2)  # unburned, burning, burned
+        # Record pre-water state before overwriting so drying can restore correctly
+        self._pre_water_state[mask] = self.state[mask]
+        self.state[mask] = 4
+        self.burn_time[mask] = 0
 
-    def add_water_drop(self, x, y, radius=3):
+    def add_control_line(self, cells: list):
+        """Mark a list of {x, y} cells as permanent control lines (state 3).
+        Works on unburned (0), burning (1), and burned (2) cells.
         """
-        Applies a circular water drop (State 4).
-        x, y are grid cell indices.
-        """
+        for cell in cells:
+            x, y = int(cell["x"]), int(cell["y"])
+            if 0 <= x < self.size and 0 <= y < self.size and self.state[y, x] in (0, 1, 2):
+                self.state[y, x] = 3
+                self.burn_time[y, x] = 0
+
+    def add_backburn(self, x: int, y: int, radius: int = 3):
+        """Ignite a backburn fire at (x, y) on unburned cells."""
         yy, xx = np.mgrid[:self.size, :self.size]
-        dist_sq = (xx - x)**2 + (yy - y)**2
-        mask = dist_sq <= radius**2
-        # Water can be dropped on fuel or active fire
-        target_mask = (mask) & ((self.state == 0) | (self.state == 1))
-        self.state[target_mask] = 4
-        self.burn_time[target_mask] = 0 # Reset timer for evaporation logic
-        print(f"Dropped water at ({x}, {y})")
+        dist_sq = (xx - x) ** 2 + (yy - y) ** 2
+        mask = (dist_sq <= radius ** 2) & (self.state == 0)
+        self.state[mask] = 1
+        self.burn_time[mask] = self.burn_duration
 
-    def step(self):
+    # ── Simulation step ────────────────────────────────────────────────────────
+
+    def step(self) -> list:
+        """Advance simulation by one tick. Returns sparse list of changed cells."""
+        prev_state = self.state.copy()
+
         math_wind_dir = math.radians(90 - self.wind_dir)
-        
-        # 1. Aging and Burn-out (State 1 -> 2)
+
+        # 1. Aging and burn-out (state 1 → 2)
         burning_mask = (self.state == 1)
         self.burn_time[burning_mask] -= 1
         self.state[(self.burn_time <= 0) & burning_mask] = 2
-        
-        # 2. Fire Spread (State 0 -> 1)
+
+        # 2. Fire spread (state 0 → 1)
         unburned_mask = (self.state == 0)
         prob_not_igniting = np.ones_like(self.state, dtype=np.float32)
-        
+
         for dy in [-1, 0, 1]:
             for dx in [-1, 0, 1]:
-                if dx == 0 and dy == 0: continue
+                if dx == 0 and dy == 0:
+                    continue
                 angle_spread = math.atan2(-dy, -dx)
                 alignment = math.cos(math_wind_dir - angle_spread)
                 M_wind = math.exp(self.c_w1 * self.wind_speed + self.c_w2 * self.wind_speed * (alignment - 1))
                 dist = self.cell_res_m * (1.414 if dx != 0 and dy != 0 else 1.0)
-                
-                y_t, x_t = slice(max(0, -dy), min(self.size, self.size - dy)), slice(max(0, -dx), min(self.size, self.size - dx))
-                y_n, x_n = slice(max(0, dy), min(self.size, self.size + dy)), slice(max(0, dx), min(self.size, self.size + dx))
-                
+
+                y_t = slice(max(0, -dy), min(self.size, self.size - dy))
+                x_t = slice(max(0, -dx), min(self.size, self.size - dx))
+                y_n = slice(max(0, dy),  min(self.size, self.size + dy))
+                x_n = slice(max(0, dx),  min(self.size, self.size + dx))
+
                 neighbor_burning = (self.state[y_n, x_n] == 1)
                 if np.any(neighbor_burning):
                     rise = self.elevation[y_t, x_t] - self.elevation[y_n, x_n]
@@ -172,30 +214,39 @@ class GridFireSimulation:
         new_ignitions = (np.random.rand(self.size, self.size) < (1.0 - prob_not_igniting)) & unburned_mask
         self.state[new_ignitions] = 1
         self.burn_time[new_ignitions] = self.burn_duration
-        
-        # 3. Drying (State 4 -> 0)
-        # Wet cells (state 4) with fuel (flammability > 0.01) can dry out if near fire
+
+        # 3. Drying (state 4 → 0)
         wet_mask = (self.state == 4) & (self.flammability > 0.01)
         if np.any(wet_mask):
             near_fire = np.zeros_like(self.state, dtype=bool)
             for dy in [-1, 0, 1]:
                 for dx in [-1, 0, 1]:
-                    if dx == 0 and dy == 0: continue
-                    y_n, x_n = slice(max(0, dy), min(self.size, self.size + dy)), slice(max(0, dx), min(self.size, self.size + dx))
-                    y_t, x_t = slice(max(0, -dy), min(self.size, self.size - dy)), slice(max(0, -dx), min(self.size, self.size - dx))
+                    if dx == 0 and dy == 0:
+                        continue
+                    y_n = slice(max(0, dy),  min(self.size, self.size + dy))
+                    x_n = slice(max(0, dx),  min(self.size, self.size + dx))
+                    y_t = slice(max(0, -dy), min(self.size, self.size - dy))
+                    x_t = slice(max(0, -dx), min(self.size, self.size - dx))
                     near_fire[y_t, x_t] |= (self.state[y_n, x_n] == 1)
-            
-            # Exposure logic: Moisture level (using burn_time array) decreases when near fire
+
             self.burn_time[wet_mask & near_fire] += 1
             self.burn_time[wet_mask & ~near_fire] = np.maximum(0, self.burn_time[wet_mask & ~near_fire] - 1)
-            
-            # Drying threshold: moisture evaporates over time, faster if near active fire
+
             drying_limit = self.burn_duration * 2
             dried_out = wet_mask & (self.burn_time >= drying_limit) & (np.random.rand(self.size, self.size) < 0.1)
-            self.state[dried_out] = 0
+            # Restore to burned (2) if cell was burned before watering; otherwise unburned (0).
+            # Burning cells (pre=1) become unburned — water prevents re-ignition.
+            restore = np.where(self._pre_water_state[dried_out] == 2, 2, 0).astype(np.int8)
+            self.state[dried_out] = restore
+            self._pre_water_state[dried_out] = 0
             self.burn_time[dried_out] = 0
-            
-        return []
+
+        # 4. Return sparse deltas
+        rows, cols = np.where(self.state != prev_state)
+        return [
+            {"x": int(cols[i]), "y": int(rows[i]), "s": int(self.state[rows[i], cols[i]])}
+            for i in range(len(rows))
+        ]
 
 def run_simulation_animated():
     presets = {
@@ -228,7 +279,7 @@ def run_simulation_animated():
         except:
             lon, lat, area_side, ws, wd = 153.02, -27.47, 2000, 10, 45
 
-    sim = GridFireSimulation(lon, lat, area_side, ws, wd)
+    sim = GridFireSimulation("custom", lon, lat, wind_speed=ws, wind_dir=wd, size_m=area_side)
     
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 6))
     cmap_fire = ListedColormap(['#2d5a27', '#ff4500', '#2F4F4F', '#3b82f6', '#0ea5e9']) 
@@ -259,7 +310,10 @@ def run_simulation_animated():
         elif event.button == 1: # Left Click for Control Line
             click_points.append((gx, gy))
             if len(click_points) == 2:
-                sim.add_control_line(click_points[0][0], click_points[0][1], click_points[1][0], click_points[1][1])
+                sim.add_control_line([
+                    {"x": click_points[0][0], "y": click_points[0][1]},
+                    {"x": click_points[1][0], "y": click_points[1][1]},
+                ])
                 click_points.clear()
 
     fig.canvas.mpl_connect('button_press_event', on_click)

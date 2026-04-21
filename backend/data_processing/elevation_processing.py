@@ -9,7 +9,7 @@ import io
 import os
 from shapely.geometry import box, Point
 
-def process_elevation(origin_lon, origin_lat, size_m):
+def process_elevation(origin_lon, origin_lat, size_m, scenario_id: str = "default"):
     """
     Processes elevation data for a specific area.
     Returns the path to the generated CSV.
@@ -70,7 +70,7 @@ def process_elevation(origin_lon, origin_lat, size_m):
         if final_geometry.is_empty.all():
             raise ValueError("Error: The requested crop area is entirely outside of Queensland.")
 
-        print(f"Clipping Elevation DEM to {size_m}m area...")
+        print(f"[{scenario_id}] Clipping Elevation DEM to {size_m}m area...")
         clipped, transform = mask(src, final_geometry, crop=True, nodata=src.nodata)
         nodata = src.nodata
         elevation_band = clipped[0]
@@ -89,9 +89,9 @@ def process_elevation(origin_lon, origin_lat, size_m):
         "elevation": elevation_band[rows, cols]
     })
 
-    output_path = os.path.join(output_data_dir, "cropped_elevation.csv")
+    output_path = os.path.join(output_data_dir, f"{scenario_id}_elevation.csv")
     df.to_csv(output_path, index=False)
-    print(f"Elevation processing complete: {len(df)} pixels.")
+    print(f"[{scenario_id}] Elevation processing complete: {len(df)} pixels → {output_path}")
     return output_path
 
 if __name__ == "__main__":
@@ -99,7 +99,8 @@ if __name__ == "__main__":
     try:
         lon = float(input("Enter origin longitude (e.g., 153.02): ") or "153.02")
         lat = float(input("Enter origin latitude (e.g., -27.47): ") or "-27.47")
-        size = float(input("Enter square size in meters (e.g., 5000): ") or "5000")
-        process_elevation(lon, lat, size)
+        size = float(input("Enter square size in meters (e.g., 10000): ") or "10000")
+        sid = input("Enter scenario_id (e.g., daguilar): ") or "custom"
+        process_elevation(lon, lat, size, sid)
     except Exception as e:
         print(f"Error: {e}")

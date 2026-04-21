@@ -61,8 +61,16 @@ const ElevationCanvasLayer = BaseCanvasLayer.extend({
     const img = octx.createImageData(gs, gs);
     const d = img.data;
 
+    // Compute dynamic range so any elevation dataset renders correctly
+    let elMin = Infinity, elMax = -Infinity;
     for (let i = 0; i < gs * gs; i++) {
-      const normalized = (grid[i] - 200) / 750;
+      if (grid[i] < elMin) elMin = grid[i];
+      if (grid[i] > elMax) elMax = grid[i];
+    }
+    const elRange = elMax > elMin ? elMax - elMin : 1;
+
+    for (let i = 0; i < gs * gs; i++) {
+      const normalized = (grid[i] - elMin) / elRange;
       const [r, g, b] = this._getColor(normalized);
       const p = i * 4;
       d[p] = r;
