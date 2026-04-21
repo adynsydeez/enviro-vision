@@ -11,11 +11,9 @@ from fastapi import FastAPI, APIRouter, HTTPException, WebSocket, WebSocketDisco
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# These imports resolve because uvicorn is started with --app-dir backend,
-# which adds backend/ to sys.path. See package.json "dev" script.
-from simulator_helper import build_init_frame, build_tick_frame
-from simulator import GridFireSimulation
-from services.ai_quiz import education_router
+from .simulator_helper import build_init_frame, build_tick_frame, _screen_y
+from .simulator import GridFireSimulation
+from .services.ai_quiz import education_router
 
 app = FastAPI(title="Bushfire Simulation API")
 app.add_middleware(
@@ -36,18 +34,14 @@ class SimSession:
     # Protects sim.step() + tick counter; never held across an await.
     lock: threading.Lock = field(default_factory=threading.Lock)
 
-_sessions: dict[str, SimSession] = {}
+_sessions: dict[str, Optional[SimSession]] = {}  # None = slot reserved, not yet ready
 _sessions_lock = threading.Lock()   # guards only the dict, not individual sessions
 MAX_SESSIONS = 20
 
 
-def _new_session_id() -> str:
-    return uuid.uuid4().hex
-
-
 def _require_session(session_id: str) -> SimSession:
     session = _sessions.get(session_id)
-    if session is None:
+    if not isinstance(session, SimSession):
         raise HTTPException(
             status_code=404,
             detail=f"Session {session_id!r} not found. POST /simulation/create first.",
@@ -92,12 +86,16 @@ async def create_simulation(body: CreateRequest):
     if preset is None:
         raise HTTPException(status_code=404, detail=f"Unknown scenario_id: {body.scenario_id!r}")
 
+    # Reserve a slot atomically so concurrent requests can't all slip past the
+    # capacity check before any of them insert their session.
+    session_id = uuid.uuid4().hex
     with _sessions_lock:
         if len(_sessions) >= MAX_SESSIONS:
             raise HTTPException(
                 status_code=503,
                 detail=f"Server at capacity ({MAX_SESSIONS} active sessions). Try again later.",
             )
+        _sessions[session_id] = None  # placeholder — released on error, replaced on success
 
     def _init():
         return GridFireSimulation(
@@ -115,9 +113,14 @@ async def create_simulation(body: CreateRequest):
             timeout=120.0,
         )
     except asyncio.TimeoutError:
+        with _sessions_lock:
+            _sessions.pop(session_id, None)
         raise HTTPException(status_code=504, detail="Simulation init timed out.")
+    except Exception:
+        with _sessions_lock:
+            _sessions.pop(session_id, None)
+        raise
 
-    session_id = _new_session_id()
     with _sessions_lock:
         _sessions[session_id] = SimSession(sim=sim)
 
@@ -171,9 +174,10 @@ def list_sessions():
 # ── WebSocket stream ───────────────────────────────────────────────────────────
 
 @app.websocket("/ws/simulation/stream")
-async def stream_simulation(websocket: WebSocket, session_id: str, tick_interval_ms: int = 200):
+async def stream_simulation(websocket: WebSocket, session_id: str, tick_interval_ms: int = 500):
     session = _sessions.get(session_id)
-    if session is None:
+    # session_id missing OR still None (slot reserved, _init not finished)
+    if not isinstance(session, SimSession):
         await websocket.accept()
         await websocket.send_json({"error": f"Session {session_id!r} not found. POST /simulation/create first."})
         await websocket.close()
@@ -205,24 +209,23 @@ async def stream_simulation(websocket: WebSocket, session_id: str, tick_interval
                     interval = max(0.05, msg.get("ms", interval * 1000) / 1000.0)
 
                 elif cmd == "set_wind":
+                    speed = float(msg.get("speed", sim.wind_speed))
+                    dir_  = float(msg.get("dir",   sim.wind_dir))
                     with session.lock:
-                        sim.wind_speed = float(msg.get("speed", sim.wind_speed))
-                        sim.wind_dir   = float(msg.get("dir",   sim.wind_dir))
+                        sim.wind_speed = max(0.0, min(100.0, speed))
+                        sim.wind_dir   = dir_ % 360.0
 
                 elif cmd == "interact":
                     tool = msg.get("tool")
                     with session.lock:
-                        # Frontend uses screen coords (y=0=north); flip to grid coords (y=0=south)
                         sz = sim.size
                         if tool == "water":
-                            y_grid = sz - 1 - int(msg["y"])
-                            sim.add_water_drop(int(msg["x"]), y_grid)
+                            sim.add_water_drop(int(msg["x"]), _screen_y(int(msg["y"]), sz))
                         elif tool == "control_line":
-                            cells = [{"x": int(c["x"]), "y": sz - 1 - int(c["y"])} for c in msg.get("cells", [])]
+                            cells = [{"x": int(c["x"]), "y": _screen_y(int(c["y"]), sz)} for c in msg.get("cells", [])]
                             sim.add_control_line(cells)
                         elif tool == "backburn":
-                            y_grid = sz - 1 - int(msg["y"])
-                            sim.add_backburn(int(msg["x"]), y_grid)
+                            sim.add_backburn(int(msg["x"]), _screen_y(int(msg["y"]), sz))
 
             except asyncio.TimeoutError:
                 pass
