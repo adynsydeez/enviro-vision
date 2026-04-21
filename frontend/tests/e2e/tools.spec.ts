@@ -38,27 +38,27 @@ test.describe('Tool palette', () => {
     const controlBtn = page.locator('button[title="Control"]');
     const innerDiv = controlBtn.locator('div').first();
 
-    const before = await controlBtn.boundingBox();
+    const before = await innerDiv.boundingBox();
     await controlBtn.click();
 
+    // Active size = 72px, inactive = 56px (ToolPalette.jsx)
     await expect(async () => {
       const after = await innerDiv.boundingBox();
-      expect(after!.width).toBeGreaterThan(60);
+      expect(after!.width).toBeGreaterThan(65);
     }).toPass({ timeout: 3_000 });
   });
 
   test('Backburn and Evac tools show locked / coming-soon state', async ({ page }) => {
-    await expect(page.locator('button[title*="coming soon"]').first()).toBeVisible();
+    await expect(page.locator('button[title*="coming soon"]')).toHaveCount(2);
   });
 
   test('Water drop interact command reaches the backend without errors', async ({ page }) => {
     const sim = new SimulationPage(page);
-    await sim.waitForTick(3);
-
     const wsErrors: string[] = [];
     page.on('console', (msg) => {
       if (msg.type() === 'error') wsErrors.push(msg.text());
     });
+    await sim.waitForTick(3);
 
     await sim.clickWaterTool();
     await sim.clickMap();
