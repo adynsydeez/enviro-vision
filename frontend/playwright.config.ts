@@ -9,9 +9,9 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 15_000 },
   fullyParallel: false,
-  workers: process.env.CI ? 4 : undefined,
   retries: 1,
   reporter: 'list',
+  workers: process.env.CI ? 4 : undefined, // Maximize CI resources on public repo (4 vCPUs)
   use: {
     baseURL: 'http://localhost:5173',
     headless: true,
@@ -28,7 +28,7 @@ export default defineConfig({
       command: 'uvicorn backend.api:app --port 8000 --log-level error',
       url: 'http://localhost:8000/docs',
       reuseExistingServer: !process.env.CI,
-      timeout: 90_000,
+      timeout: 180_000,
       cwd: path.resolve(__dirname, '..'),
     },
     {
