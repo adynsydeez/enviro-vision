@@ -11,6 +11,7 @@ export default defineConfig({
   fullyParallel: false,
   retries: 1,
   reporter: 'list',
+  workers: process.env.CI ? 2 : undefined,
   use: {
     baseURL: 'http://localhost:5173',
     headless: true,
@@ -34,7 +35,7 @@ export default defineConfig({
       command: 'npm run dev',
       url: 'http://localhost:5173',
       reuseExistingServer: !process.env.CI,
-      timeout: 30_000,
+      timeout: 60_000,
       env: {
         VITE_API_URL: 'http://localhost:8000',
         VITE_WS_URL: 'ws://localhost:8000',
