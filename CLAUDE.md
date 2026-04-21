@@ -42,9 +42,9 @@ The simulation requires large GIS data files (TIF and DEM) which are ignored by 
 
 ### 1. Required Files
 - **Fuel Data:** `Bushfire fuel classification fuel types map release 2.tif`
+  - Source: [CSIRO/NBIC Vegetation Fuel Data](https://research.csiro.au/nbic/home/data/veg-fuel/)
 - **Elevation Data:** `3secSRTM_DEM/` directory (specifically `3secSRTM_DEM/DEM_ESRI_GRID_16bit_Integer/dem3s_int`)
-
-*Note: These files are sourced from official Australian government GIS portals (e.g., TERN or Geoscience Australia).*
+  - Source: [Geoscience Australia SRTM 3 Second DEM](https://dev.ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/69888)
 
 ### 2. Preprocessing
 Once the raw data is in place, run the preprocessing script to generate the `.npy` caches used by the simulator for fast startup:
