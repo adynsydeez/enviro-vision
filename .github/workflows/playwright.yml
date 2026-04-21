@@ -3,12 +3,11 @@ on:
   push:
     branches: [ main, 'release/*' ]
   pull_request:
-    branches: [ main, 'release/*' ]
   workflow_dispatch:
 
 jobs:
   test:
-    timeout-minutes: 30
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
