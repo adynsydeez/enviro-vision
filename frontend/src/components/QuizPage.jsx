@@ -65,7 +65,7 @@ export default function QuizPage({ onBack }) {
         <div className="flex flex-col items-center w-full max-w-2xl text-center shrink-0">
           <div className="relative z-10 mb-4">
             <h2 className="text-3xl md:text-4xl font-bold mb-1">Quiz Complete!</h2>
-            <p className="text-orange-500 text-5xl md:text-6xl font-black">{score}/10</p>
+            <p data-testid="quiz-score" className="text-orange-500 text-5xl md:text-6xl font-black">{score}/10</p>
           </div>
           <div className="relative z-10 w-full mb-6">
             <MascotBubble text={msg} />
@@ -111,7 +111,7 @@ export default function QuizPage({ onBack }) {
                 }
                 
                 return (
-                  <button key={i} onClick={() => handleSelect(i)} disabled={isAnswered} className={`flex items-center justify-between p-3 rounded-xl border-2 text-left font-bold text-sm md:text-base transition-all cursor-pointer ${style}`}>
+                  <button key={i} data-testid="answer-option" onClick={() => handleSelect(i)} disabled={isAnswered} className={`flex items-center justify-between p-3 rounded-xl border-2 text-left font-bold text-sm md:text-base transition-all cursor-pointer ${style}`}>
                     <span className="truncate mr-2">{opt}</span>
                     {isAnswered && i === current.correctIndex && <Check size={18} className="shrink-0 text-green-500" />}
                     {isAnswered && i === selected && i !== current.correctIndex && <X size={18} className="shrink-0 text-red-500" />}
@@ -122,7 +122,7 @@ export default function QuizPage({ onBack }) {
 
             <div className={`w-full transition-all duration-500 transform shrink-0 ${isAnswered ? 'opacity-100 translate-y-0 scale-100 mb-8' : 'opacity-0 translate-y-4 scale-95 pointer-events-none h-0 overflow-hidden'}`}>
               <MascotBubble text={current.fact} />
-              <button onClick={handleNext} className="mt-4 w-full flex items-center justify-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-black text-lg transition-all shadow-xl shadow-orange-900/30 cursor-pointer">
+              <button data-testid="quiz-next-btn" onClick={handleNext} className="mt-4 w-full flex items-center justify-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-black text-lg transition-all shadow-xl shadow-orange-900/30 cursor-pointer">
                 {currentIndex === 9 ? "View Results" : "Next Question"} <ArrowRight size={20} />
               </button>
             </div>
