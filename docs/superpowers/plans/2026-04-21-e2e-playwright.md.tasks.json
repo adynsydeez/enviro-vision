@@ -1,0 +1,61 @@
+{
+  "planPath": "docs/superpowers/plans/2026-04-21-e2e-playwright.md",
+  "tasks": [
+    {
+      "id": 2,
+      "subject": "Task 0: Setup — TypeScript deps, config, delete old files",
+      "status": "pending",
+      "description": "**Goal:** Install @types/node, replace playwright.config.js with dual-server TypeScript config, delete app.spec.js, create tests/tsconfig.json.\n\n**Files:**\n- Modify: `frontend/package.json`\n- Create: `frontend/playwright.config.ts`\n- Delete: `frontend/playwright.config.js`\n- Delete: `frontend/tests/e2e/app.spec.js`\n- Create: `frontend/tests/tsconfig.json`\n\n**Acceptance Criteria:**\n- [ ] `npm run test:e2e -- --list` exits 0 with 0 tests\n- [ ] playwright.config.ts exists; playwright.config.js does not\n- [ ] app.spec.js does not exist\n\n**Verify:** `cd frontend && npm run test:e2e -- --list` → `0 tests`\n\n```json:metadata\n{\"files\":[\"frontend/playwright.config.ts\",\"frontend/tests/tsconfig.json\",\"frontend/package.json\"],\"verifyCommand\":\"cd frontend && npm run test:e2e -- --list\",\"acceptanceCriteria\":[\"playwright.config.ts exists\",\"playwright.config.js deleted\",\"app.spec.js deleted\",\"test:e2e --list exits 0\"]}\n```"
+    },
+    {
+      "id": 3,
+      "subject": "Task 1: Add data-testid attributes to MapView and QuizPage",
+      "status": "pending",
+      "blockedBy": [2],
+      "description": "**Goal:** Add data-testid attributes to stats, status badge, pause button, and quiz elements.\n\n**Files:**\n- Modify: `frontend/src/MapView.jsx`\n- Modify: `frontend/src/components/QuizPage.jsx`\n\n**Acceptance Criteria:**\n- [ ] 10 data-testid attributes added across both files\n- [ ] Build passes without errors\n\n**Verify:** `cd frontend && npm run build 2>&1 | tail -5`\n\n```json:metadata\n{\"files\":[\"frontend/src/MapView.jsx\",\"frontend/src/components/QuizPage.jsx\"],\"verifyCommand\":\"cd frontend && npm run build 2>&1 | tail -5\",\"acceptanceCriteria\":[\"10 data-testid attributes added\",\"build passes without errors\"]}\n```"
+    },
+    {
+      "id": 4,
+      "subject": "Task 2: Create Page Objects (LandingPage, SimulationPage, QuizPage)",
+      "status": "pending",
+      "blockedBy": [2, 3],
+      "description": "**Goal:** Create three TypeScript POM classes.\n\n**Files:**\n- Create: `frontend/tests/e2e/pages/LandingPage.ts`\n- Create: `frontend/tests/e2e/pages/SimulationPage.ts`\n- Create: `frontend/tests/e2e/pages/QuizPage.ts`\n\n**Acceptance Criteria:**\n- [ ] tsc --noEmit exits 0\n- [ ] All three classes exported\n\n**Verify:** `cd frontend && npx tsc --project tests/tsconfig.json --noEmit`\n\n```json:metadata\n{\"files\":[\"frontend/tests/e2e/pages/LandingPage.ts\",\"frontend/tests/e2e/pages/SimulationPage.ts\",\"frontend/tests/e2e/pages/QuizPage.ts\"],\"verifyCommand\":\"cd frontend && npx tsc --project tests/tsconfig.json --noEmit\",\"acceptanceCriteria\":[\"tsc exits 0\",\"LandingPage exported\",\"SimulationPage exported\",\"QuizPage exported\"]}\n```"
+    },
+    {
+      "id": 5,
+      "subject": "Task 3: landing.spec.ts — 4 landing page tests",
+      "status": "pending",
+      "blockedBy": [4],
+      "description": "**Goal:** 4 tests: all 6 cards, map toggle + pins, pin popup launch, quiz navigation.\n\n**Files:**\n- Create: `frontend/tests/e2e/landing.spec.ts`\n\n**Acceptance Criteria:**\n- [ ] 4 tests pass\n\n**Verify:** `cd frontend && npm run test:e2e -- landing.spec.ts` → 4 passed\n\n```json:metadata\n{\"files\":[\"frontend/tests/e2e/landing.spec.ts\"],\"verifyCommand\":\"cd frontend && npm run test:e2e -- landing.spec.ts\",\"acceptanceCriteria\":[\"4 tests pass\"]}\n```"
+    },
+    {
+      "id": 6,
+      "subject": "Task 4: simulation.spec.ts — 10 simulation tests",
+      "status": "pending",
+      "blockedBy": [4],
+      "description": "**Goal:** 10 tests — 6 scenario launch tests + burning, score, pause, resume.\n\n**Files:**\n- Create: `frontend/tests/e2e/simulation.spec.ts`\n\n**Acceptance Criteria:**\n- [ ] 10 tests pass\n\n**Verify:** `cd frontend && npm run test:e2e -- simulation.spec.ts` → 10 passed\n\n```json:metadata\n{\"files\":[\"frontend/tests/e2e/simulation.spec.ts\"],\"verifyCommand\":\"cd frontend && npm run test:e2e -- simulation.spec.ts\",\"acceptanceCriteria\":[\"10 tests pass\",\"all 6 scenarios reach tick > 0\"]}\n```"
+    },
+    {
+      "id": 7,
+      "subject": "Task 5: tools.spec.ts — 5 tool palette tests",
+      "status": "pending",
+      "blockedBy": [4],
+      "description": "**Goal:** 5 tests: water arm/disarm, control arm, locked tools, water drop backend interaction, control line placement.\n\n**Files:**\n- Create: `frontend/tests/e2e/tools.spec.ts`\n\n**Acceptance Criteria:**\n- [ ] 5 tests pass\n\n**Verify:** `cd frontend && npm run test:e2e -- tools.spec.ts` → 5 passed\n\n```json:metadata\n{\"files\":[\"frontend/tests/e2e/tools.spec.ts\"],\"verifyCommand\":\"cd frontend && npm run test:e2e -- tools.spec.ts\",\"acceptanceCriteria\":[\"5 tests pass\"]}\n```"
+    },
+    {
+      "id": 8,
+      "subject": "Task 6: layers.spec.ts — 3 layer selector tests",
+      "status": "pending",
+      "blockedBy": [4],
+      "description": "**Goal:** 3 tests: fire is default, foliage deactivates fire, elevation deactivates fire.\n\n**Files:**\n- Create: `frontend/tests/e2e/layers.spec.ts`\n\n**Acceptance Criteria:**\n- [ ] 3 tests pass\n\n**Verify:** `cd frontend && npm run test:e2e -- layers.spec.ts` → 3 passed\n\n```json:metadata\n{\"files\":[\"frontend/tests/e2e/layers.spec.ts\"],\"verifyCommand\":\"cd frontend && npm run test:e2e -- layers.spec.ts\",\"acceptanceCriteria\":[\"3 tests pass\"]}\n```"
+    },
+    {
+      "id": 9,
+      "subject": "Task 7: quiz.spec.ts — 5 quiz flow tests",
+      "status": "pending",
+      "blockedBy": [4],
+      "description": "**Goal:** 5 tests: question rendering, correct/wrong highlighting, 10-question progression, completion score.\n\n**Files:**\n- Create: `frontend/tests/e2e/quiz.spec.ts`\n\n**Acceptance Criteria:**\n- [ ] 5 tests pass\n\n**Verify:** `cd frontend && npm run test:e2e -- quiz.spec.ts` → 5 passed\n\n```json:metadata\n{\"files\":[\"frontend/tests/e2e/quiz.spec.ts\"],\"verifyCommand\":\"cd frontend && npm run test:e2e -- quiz.spec.ts\",\"acceptanceCriteria\":[\"5 tests pass\"]}\n```"
+    }
+  ],
+  "lastUpdated": "2026-04-21T00:00:00Z"
+}
