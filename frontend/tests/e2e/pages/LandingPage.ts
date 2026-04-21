@@ -19,7 +19,7 @@ export class LandingPage {
   }
 
   async launchScenario(scenarioName: string) {
-    await this.page.getByRole('button', { name: scenarioName }).click();
+    await this.page.getByRole('button', { name: new RegExp(scenarioName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }).click();
     await expect(
       this.page.getByRole('button', { name: /scenarios/i })
     ).toBeVisible({ timeout: 15_000 });

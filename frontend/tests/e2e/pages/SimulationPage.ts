@@ -24,6 +24,9 @@ export class SimulationPage {
   }
 
   async dismissIntro() {
+    // Wait for the intro to appear before trying to dismiss it.
+    // If it never appears (e.g. intro already dismissed), continue gracefully.
+    await this.introNextBtn.waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
     for (let i = 0; i < 5; i++) {
       if (!(await this.introNextBtn.isVisible())) break;
       await this.introNextBtn.click();
