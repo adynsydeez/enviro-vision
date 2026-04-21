@@ -40,11 +40,11 @@ export function useSimulation(scenario) {
   const vegGridRef       = useRef(null);
   const elevationGridRef = useRef(null);
   const clientRef        = useRef(null);
-  const pausedRef        = useRef(true);
+  const pausedRef        = useRef(false);
 
   const [stats,  setStats]  = useState(DEFAULT_STATS);
   const [status, setStatus] = useState(scenario ? "connecting" : "idle");
-  const [paused, setPaused] = useState(true);
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
     if (!scenario) return;

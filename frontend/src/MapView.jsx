@@ -368,15 +368,14 @@ export default function MapView({ scenario, onBack }) {
   const gameOverTriggered = useRef(false);
   const hasStartedRef = useRef(false);
 
-  // Gate auto-start on both the intro being dismissed AND the connection being ready.
-  // Without the status check, togglePause() can fire before the WebSocket is open
-  // on the real backend path, dropping the "resume" command.
+  // Kick off the simulation once the intro is dismissed and the connection is open.
+  // paused starts as false (matching the backend), so no togglePause needed here.
   useEffect(() => {
     if (!isIntroActive && status === "running" && !hasStartedRef.current) {
       hasStartedRef.current = true;
-      start().then(() => togglePause()).catch(console.error);
+      start().catch(console.error);
     }
-  }, [isIntroActive, status, togglePause, start]);
+  }, [isIntroActive, status, start]);
 
   // Reset game over trigger and started flag when simulation restarts
   useEffect(() => {
