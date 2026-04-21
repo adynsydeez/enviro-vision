@@ -9,6 +9,7 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 15_000 },
   fullyParallel: false,
+  workers: process.env.CI ? 1 : undefined,
   retries: 1,
   reporter: 'list',
   use: {
@@ -34,7 +35,7 @@ export default defineConfig({
       command: 'npm run dev',
       url: 'http://localhost:5173',
       reuseExistingServer: !process.env.CI,
-      timeout: 30_000,
+      timeout: 120_000,
       env: {
         VITE_API_URL: 'http://localhost:8000',
         VITE_WS_URL: 'ws://localhost:8000',
