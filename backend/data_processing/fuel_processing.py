@@ -9,10 +9,7 @@ import zipfile
 import io
 import os
 from shapely.geometry import box, Point
-try:
-    from .veg_mapping import bfc_to_veg
-except ImportError:
-    from veg_mapping import bfc_to_veg
+from .veg_mapping import bfc_to_veg
 
 def process_fuel(origin_lon, origin_lat, size_m, scenario_id: str = "default"):
     """

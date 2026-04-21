@@ -56,8 +56,9 @@ Thumbs.db
 coverage/
 
 input_data/
-# output_data/
+output_data/
 abs_states/
 
 # Playwright MCP
 .playwright-mcp/
+docs/

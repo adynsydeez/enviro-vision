@@ -10,9 +10,8 @@ import os
 from pyproj import Transformer
 from scipy.interpolate import griddata
 
-# Resolves because uvicorn is started with --app-dir backend (backend/ on sys.path).
-from data_processing.fuel_processing import process_fuel
-from data_processing.elevation_processing import process_elevation
+from .data_processing.fuel_processing import process_fuel
+from .data_processing.elevation_processing import process_elevation
 
 class GridFireSimulation:
     def __init__(self, scenario_id: str, origin_lon: float, origin_lat: float,

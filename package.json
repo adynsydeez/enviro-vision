@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "dev": "concurrently \"npm run dev --prefix frontend\" \"uvicorn api:app --reload --port 8000 --app-dir backend\"",
+    "dev": "concurrently \"npm run dev --prefix frontend\" \"uvicorn backend.api:app --reload --port 8000\"",
     "install:all": "npm install --prefix frontend && pip install -r backend/requirements.txt",
     "lint": "npm run lint --prefix frontend"
   },
