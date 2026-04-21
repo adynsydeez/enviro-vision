@@ -36,6 +36,24 @@ Backend requires `ANTHROPIC_API_KEY` in a `.env` file at repo root for the AI qu
 
 No test framework is configured yet.
 
+## Data Setup
+
+The simulation requires large GIS data files (TIF and DEM) which are ignored by git. These must be manually placed in `backend/data_processing/input_data/`.
+
+### 1. Required Files
+- **Fuel Data:** `Bushfire fuel classification fuel types map release 2.tif`
+- **Elevation Data:** `3secSRTM_DEM/` directory (specifically `3secSRTM_DEM/DEM_ESRI_GRID_16bit_Integer/dem3s_int`)
+
+*Note: These files are sourced from official Australian government GIS portals (e.g., TERN or Geoscience Australia).*
+
+### 2. Preprocessing
+Once the raw data is in place, run the preprocessing script to generate the `.npy` caches used by the simulator for fast startup:
+```bash
+cd backend
+python -m data_processing.preprocess_scenarios
+```
+This will populate `backend/data_processing/output_data/` with `{scenario_id}_{veg_grid,flammability,elevation}.npy` files for all 6 scenarios.
+
 ## Architecture
 
 ```
