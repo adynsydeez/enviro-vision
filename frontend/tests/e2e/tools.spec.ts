@@ -3,8 +3,9 @@ import { LandingPage } from './pages/LandingPage';
 import { SimulationPage } from './pages/SimulationPage';
 
 test.describe('Tool palette', () => {
+  test.describe.configure({ timeout: 90_000 });
+
   test.beforeEach(async ({ page }) => {
-    test.setTimeout(90_000);
     const landing = new LandingPage(page);
     const sim = new SimulationPage(page);
     await landing.goto();

@@ -28,8 +28,9 @@ for (const { name } of SCENARIOS) {
 }
 
 test.describe("D'Aguilar simulation state", () => {
+  test.describe.configure({ timeout: 90_000 });
+
   test.beforeEach(async ({ page }) => {
-    test.setTimeout(90_000);
     const landing = new LandingPage(page);
     const sim = new SimulationPage(page);
     await landing.goto();
