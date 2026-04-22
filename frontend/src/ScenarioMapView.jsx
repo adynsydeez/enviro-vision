@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -83,6 +84,34 @@ function ScenarioPopupCard({ scenario, onSelect }) {
   );
 }
 
+function ScenarioMarker({ scenario, onSelect }) {
+  const markerRef = useRef(null);
+  const closeTimer = useRef(null);
+
+  const eventHandlers = {
+    mouseover() {
+      clearTimeout(closeTimer.current);
+      markerRef.current?.openPopup();
+    },
+    mouseout() {
+      closeTimer.current = setTimeout(() => markerRef.current?.closePopup(), 200);
+    },
+  };
+
+  return (
+    <Marker
+      ref={markerRef}
+      position={scenario.center}
+      icon={fireIcon}
+      eventHandlers={eventHandlers}
+    >
+      <Popup closeButton={false} offset={[0, -7]} autoPan={false}>
+        <ScenarioPopupCard scenario={scenario} onSelect={onSelect} />
+      </Popup>
+    </Marker>
+  );
+}
+
 export default function ScenarioMapView({ scenarios, onSelect }) {
   return (
     <MapContainer
@@ -100,15 +129,7 @@ export default function ScenarioMapView({ scenarios, onSelect }) {
       />
 
       {scenarios.map((scenario) => (
-        <Marker
-          key={scenario.id}
-          position={scenario.center}
-          icon={fireIcon}
-        >
-          <Popup closeButton={false} offset={[0, -7]}>
-            <ScenarioPopupCard scenario={scenario} onSelect={onSelect} />
-          </Popup>
-        </Marker>
+        <ScenarioMarker key={scenario.id} scenario={scenario} onSelect={onSelect} />
       ))}
     </MapContainer>
   );
