@@ -5,15 +5,23 @@ const Mascot = ({ mascotHook, introTotal }) => {
   const { isIntroActive, isFadingOut, currentMessage, showBubble, nextIntro, introIndex } = mascotHook;
 
   const showOverlay = isIntroActive || isFadingOut;
+  const showIntroElements = isIntroActive && !isFadingOut;
 
   return (
     <>
       {showOverlay && (
         <button
-          className={`fixed inset-0 z-[2000] cursor-pointer border-none w-full h-full p-0 mascot-intro-vignette${isFadingOut ? ' mascot-intro-vignette-fading' : ''}`}
+          className={`fixed inset-0 z-[2000] cursor-pointer border-none w-full h-full p-0 mascot-intro-overlay${isFadingOut ? ' mascot-intro-overlay-fading' : ''}`}
           onClick={!isFadingOut ? nextIntro : undefined}
           aria-label="Next intro message"
         />
+      )}
+
+      {showIntroElements && (
+        <div className="mascot-tap-hint" data-testid="mascot-tap-hint">
+          <div className="mascot-tap-hint-arrow">👈</div>
+          <div className="mascot-tap-hint-text">TAP ANYWHERE</div>
+        </div>
       )}
 
       <div className="fixed bottom-4 left-4 flex flex-col items-start z-[2001] pointer-events-none">
@@ -31,7 +39,7 @@ const Mascot = ({ mascotHook, introTotal }) => {
           </div>
         )}
 
-        {isIntroActive && !isFadingOut && introTotal > 0 && (
+        {showIntroElements && introTotal > 0 && (
           <div className="mascot-progress-dots" data-testid="mascot-progress-dots">
             {Array.from({ length: introTotal }).map((_, i) => (
               <div
@@ -44,7 +52,7 @@ const Mascot = ({ mascotHook, introTotal }) => {
         )}
 
         <div
-          className={`w-24 h-24 md:w-32 md:h-32 pointer-events-auto mascot-float${isIntroActive ? ' cursor-pointer' : ''}`}
+          className={`w-24 h-24 md:w-32 md:h-32 pointer-events-auto ${showIntroElements ? 'mascot-pulse' : 'mascot-float'}${isIntroActive ? ' cursor-pointer' : ''}`}
           onClick={isIntroActive ? nextIntro : undefined}
         >
           <img

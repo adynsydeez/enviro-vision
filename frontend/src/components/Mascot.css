@@ -55,19 +55,54 @@
   -webkit-backdrop-filter: blur(12px);
 }
 
-.mascot-intro-vignette {
-  background: radial-gradient(
-    ellipse 65% 75% at 11% 97%,
-    transparent 0%,
-    rgba(0, 0, 0, 0.30) 40%,
-    rgba(0, 0, 0, 0.72) 100%
-  );
+.mascot-intro-overlay {
+  background: rgba(0, 0, 0, 0.60);
   opacity: 1;
   transition: opacity 400ms ease-out;
 }
 
-.mascot-intro-vignette-fading {
+.mascot-intro-overlay-fading {
   opacity: 0;
+}
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.55); }
+  70%  { box-shadow: 0 0 0 16px rgba(249, 115, 22, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+}
+
+.mascot-pulse {
+  animation: mascot-float 3s ease-in-out infinite, pulse-ring 1.6s ease-out infinite;
+  border-radius: 9999px;
+}
+
+@keyframes bounce-left {
+  0%, 100% { transform: translateX(0); }
+  50%       { transform: translateX(-5px); }
+}
+
+.mascot-tap-hint {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 2001;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.mascot-tap-hint-arrow {
+  font-size: 1rem;
+  opacity: 0.6;
+  animation: bounce-left 1s ease-in-out infinite;
+}
+
+.mascot-tap-hint-text {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .mascot-progress-dots {
