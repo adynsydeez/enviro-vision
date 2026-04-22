@@ -34,7 +34,11 @@ const Mascot = ({ mascotHook, introTotal }) => {
         {isIntroActive && !isFadingOut && introTotal > 0 && (
           <div className="mascot-progress-dots" data-testid="mascot-progress-dots">
             {Array.from({ length: introTotal }).map((_, i) => (
-              <div key={i} className={`mascot-dot${i === introIndex ? ' mascot-dot-active' : ''}`} />
+              <div
+                key={i}
+                className={`mascot-dot${i === introIndex ? ' mascot-dot-active' : ''}`}
+                aria-current={i === introIndex ? 'true' : undefined}
+              />
             ))}
           </div>
         )}

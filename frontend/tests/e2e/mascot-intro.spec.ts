@@ -19,16 +19,15 @@ test.describe('Mascot intro overlay', () => {
     const dots = page.getByTestId('mascot-progress-dots');
     await expect(dots).toBeVisible({ timeout: 5_000 });
 
-    // First dot is active
-    const activeDots = dots.locator('.mascot-dot-active');
-    await expect(activeDots).toHaveCount(1);
+    // Exactly one active dot initially
+    await expect(dots.locator('[aria-current="true"]')).toHaveCount(1);
 
-    // Click to advance to second message
+    // Click to advance
     await page.getByRole('button', { name: /next intro message/i }).click();
 
-    // Dots still visible with exactly one active
+    // Still exactly one active dot after advance
     await expect(dots).toBeVisible();
-    await expect(dots.locator('.mascot-dot-active')).toHaveCount(1);
+    await expect(dots.locator('[aria-current="true"]')).toHaveCount(1);
   });
 
   test('overlay and dots are removed after intro is dismissed', async ({ page }) => {
@@ -37,10 +36,10 @@ test.describe('Mascot intro overlay', () => {
 
     await expect(
       page.getByRole('button', { name: /next intro message/i })
-    ).not.toBeVisible({ timeout: 1_000 });
+    ).not.toBeVisible({ timeout: 500 });
 
     await expect(
       page.getByTestId('mascot-progress-dots')
-    ).not.toBeVisible();
+    ).not.toBeVisible({ timeout: 500 });
   });
 });
