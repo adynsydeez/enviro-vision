@@ -187,6 +187,7 @@ export class MockWebSocket {
           changes,
           stats: this._calcStats(),
         });
+        this._resume();
         return;
       }
       if (msg.action === "pause") {

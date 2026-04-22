@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**FireCommander** — a wildfire simulation platform. Motto: *"Play with fire. Safely."*
+**Project Pyro** — a wildfire simulation platform. Motto: *"Play with fire. Safely."*
+
+**Live deployment:** https://pyro.farzadhayat.dev — frontend-only build on Vercel. Uses `MockWebSocket.js` (client-side Alexandridis CA) with procedural Voronoi vegetation. No backend, no real GIS/fuel/elevation data.
 
 **Target Audience:** Kids, teens, and young adults — not professional firefighters. The goal is environmental literacy and basic tactical thinking around wildfire behaviour. UI should be approachable, engaging, and game-like while remaining grounded in realistic fire science.
 
@@ -30,11 +32,18 @@ npm run preview   # Preview production build
 ```bash
 uvicorn backend.api:app --reload --port 8000   # Start FastAPI dev server only
 pip install -r backend/requirements.txt        # Install Python deps
+python backend/test.py                         # Manual WS + REST integration smoke test (requires running backend)
 ```
 
 Backend requires `ANTHROPIC_API_KEY` in a `.env` file at repo root for the AI quiz endpoint.
 
-No test framework is configured yet.
+### E2E Tests (in `frontend/`)
+```bash
+npm run test:e2e        # Run Playwright tests (auto-starts backend + frontend)
+npm run test:e2e:ui     # Run with Playwright UI explorer
+```
+
+Playwright config is at `frontend/playwright.config.ts`. Tests live in `frontend/tests/e2e/` and cover: landing, simulation, tools, layers, mascot intro, and quiz flows. The webServer config auto-starts both servers, so tests can run standalone.
 
 ## Data Setup
 
@@ -84,6 +93,7 @@ frontend/src/
     quiz-questions.js             Pool of wildfire educational questions and facts
     scenarios.js                  6 QLD scenarios with coords, images, risk levels, dialogue
     vegetation-mapping.js         24 vegetation types across 4 classification groups
+  constants.js                    Shared simulation constants (GRID_SIZE = 1000) — single source of truth for mock and backend
   utils/
     geo.js                        Lat/lng bounds from center + radius in km, cell conversion
 backend/
@@ -242,7 +252,7 @@ CREATE TABLE results   (id, team_name, scenario_id, score, ha_burned REAL, times
 
 - **Frontend:** React 18.2, react-leaflet 4.2.1, Vite 8.0.8, Tailwind CSS v4.2.2, Lucide icons
 - **Backend:** FastAPI, NumPy, SQLite (raw sqlite3, no ORM), Uvicorn
-- **No TypeScript** — pure JSX throughout
+- **No TypeScript in app code** — pure JSX throughout; TypeScript is used only for Playwright config and `@types/*` for editor support
 
 ## Design System
 

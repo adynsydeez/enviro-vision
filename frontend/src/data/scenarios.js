@@ -1,5 +1,9 @@
-import daguilar from '../assets/D\'Aguilar.jpg';
-import lamington from '../assets/Lamington-National-Park.jpg';
+import daguilar from '../assets/D-Aguilar.jpg';
+import lamington from '../assets/Lamington.jpg';
+import glassHouseMountains from '../assets/Glass-House-Mountains.jpg';
+import bunyaMountains from '../assets/Bunya-Mountains.jpg';
+import girraween from '../assets/Girraween.jpg';
+import eungella from '../assets/Eungella.jpg';
 
 export const RISK_LEVELS = {
   Catastrophic: { label: 'Catastrophic', color: 'text-red-400', bg: 'bg-red-950 border-red-800' },
@@ -21,7 +25,7 @@ const scenarios = [
     image: daguilar,
     introMessages: [
       "Whoa! Look at those flames in D'Aguilar!",
-      "I'm your Fire Commander assistant. Let's save some trees!",
+      "I'm your Project Pyro assistant. Let's save some trees!",
       "I may be just a mascot, but I've got some serious firefighting skills!",
       "Click anywhere to see the mission details..."
     ],
@@ -38,7 +42,7 @@ const scenarios = [
     name: 'Lamington National Park',
     state: 'QLD',
     year: 2019,
-    center: [-28.231, 153.1196],
+    center: [-28.139, 153.109],
     zoom: 14,
     description: 'Subtropical rainforest–eucalypt interface in the McPherson Range. Rapid boundary flare-ups and spotting across deep valleys from ember cast.',
     areaHa: '6,000',
@@ -68,7 +72,7 @@ const scenarios = [
     description: 'Open eucalypt forest and heath across the Sunshine Coast hinterland. Fast-moving grassfire flanks driven by strong north-westerlies threatened townships and wildlife corridors.',
     areaHa: '28,000',
     risk: 'Extreme',
-    image: daguilar,
+    image: glassHouseMountains,
     introMessages: [
       "The Glass House Mountains are getting a bit too much heat!",
       "Sunshine Coast? More like Smoke Coast right now!",
@@ -88,12 +92,12 @@ const scenarios = [
     name: 'Bunya Mountains',
     state: 'QLD',
     year: 2019,
-    center: [-26.871, 151.573],
+    center: [-26.885, 151.597],
     zoom: 14,
     description: 'Ancient bunya pine and hoop pine rainforest on the Darling Downs escarpment. Drought-stressed understorey carried fire into stands not burned in living memory.',
     areaHa: '12,000',
     risk: 'High',
-    image: daguilar,
+    image: bunyaMountains,
     introMessages: [
       "Ancient pines in Bunya are in trouble!",
       "Don't let the Bunya nuts roast too early!",
@@ -113,12 +117,12 @@ const scenarios = [
     name: 'Girraween National Park',
     state: 'QLD',
     year: 2019,
-    center: [-28.889, 151.945],
+    center: [-28.837, 151.938],
     zoom: 14,
     description: 'Granite-belt dry sclerophyll on the Queensland–NSW border. Record heat and zero humidity produced extreme fire behaviour across exposed rock slopes and stringybark forest.',
     areaHa: '36,000',
     risk: 'Catastrophic',
-    image: daguilar,
+    image: girraween,
     introMessages: [
       "Girraween is feeling the 'Record Heat'!",
       "Granite-belt? More like Fire-belt today!",
@@ -138,12 +142,12 @@ const scenarios = [
     name: 'Eungella National Park',
     state: 'QLD',
     year: 2018,
-    center: [-21.132, 148.491],
+    center: [-20.917, 148.583],
     zoom: 14,
     description: 'Tropical and subtropical rainforest on the Clarke Range inland from Mackay. Unprecedented fire penetration into wet sclerophyll driven by the longest recorded dry spell in the region.',
     areaHa: '9,000',
     risk: 'Extreme',
-    image: daguilar,
+    image: eungella,
     introMessages: [
       "Tropical Eungella is having an 'unprecedented' bad day!",
       "Rainforest? It's more of a 'Fireforest' right now!",

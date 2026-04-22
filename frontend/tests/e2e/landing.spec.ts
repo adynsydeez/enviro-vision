@@ -39,8 +39,8 @@ test.describe('Landing page', () => {
     await landing.goto();
     await landing.toggleMapView();
 
-    // Click the first fire pin marker
-    await page.locator('.leaflet-marker-icon').first().click();
+    // Hover the first fire pin marker to open the popup
+    await page.locator('.leaflet-marker-icon').first().hover();
 
     // Popup appears with a Launch button — click it
     const launchInPopup = page.getByRole('button', { name: /launch/i });
