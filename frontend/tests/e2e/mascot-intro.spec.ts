@@ -9,10 +9,14 @@ test.describe('Mascot intro overlay', () => {
     await landing.launchScenario("D'Aguilar National Park");
   });
 
-  test('vignette overlay is visible during intro', async ({ page }) => {
+  test('flat dim overlay is visible during intro', async ({ page }) => {
     const overlay = page.getByRole('button', { name: /next intro message/i });
     await expect(overlay).toBeVisible({ timeout: 5_000 });
-    await expect(overlay).toHaveClass(/mascot-intro-vignette/);
+    await expect(overlay).toHaveClass(/mascot-intro-overlay/);
+  });
+
+  test('tap hint is visible during intro', async ({ page }) => {
+    await expect(page.getByTestId('mascot-tap-hint')).toBeVisible({ timeout: 5_000 });
   });
 
   test('progress dots are visible and active dot advances on click', async ({ page }) => {
@@ -30,7 +34,7 @@ test.describe('Mascot intro overlay', () => {
     await expect(dots.locator('[aria-current="step"]')).toHaveCount(1);
   });
 
-  test('overlay and dots are removed after intro is dismissed', async ({ page }) => {
+  test('overlay, dots, and tap hint are removed after intro is dismissed', async ({ page }) => {
     const sim = new SimulationPage(page);
     await sim.dismissIntro();
 
@@ -38,8 +42,7 @@ test.describe('Mascot intro overlay', () => {
       page.getByRole('button', { name: /next intro message/i })
     ).not.toBeVisible();
 
-    await expect(
-      page.getByTestId('mascot-progress-dots')
-    ).not.toBeVisible();
+    await expect(page.getByTestId('mascot-progress-dots')).not.toBeVisible();
+    await expect(page.getByTestId('mascot-tap-hint')).not.toBeVisible();
   });
 });
