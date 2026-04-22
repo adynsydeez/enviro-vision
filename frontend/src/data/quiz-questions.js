@@ -65,5 +65,5 @@ export const SCORE_STATEMENTS = {
   low: "Don't sweat it, recruit! Even the best firefighters started as trainees. Let's hit the books and try again?",
   mid: "Nice work, Fire Watcher! You've got the basics down, but there's more to learn about the bush. Want to go again?",
   high: "Impressive! You're a Fire Warden in the making. Just a few more facts to master and you'll be unstoppable!",
-  perfect: "Incredible! You're a Fire Commander! The forest is safer with you on watch. You've mastered the fire science!"
+  perfect: "Incredible! You're a Project Pyro pro! The forest is safer with you on watch. You've mastered the fire science!"
 };
