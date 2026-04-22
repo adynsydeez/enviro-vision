@@ -13,6 +13,7 @@ test.describe('Mascot intro overlay', () => {
     const overlay = page.getByRole('button', { name: /next intro message/i });
     await expect(overlay).toBeVisible({ timeout: 5_000 });
     await expect(overlay).toHaveClass(/mascot-intro-overlay/);
+    await expect(overlay).not.toHaveClass(/mascot-intro-vignette/);
   });
 
   test('tap hint is visible during intro', async ({ page }) => {
@@ -42,7 +43,7 @@ test.describe('Mascot intro overlay', () => {
       page.getByRole('button', { name: /next intro message/i })
     ).not.toBeVisible();
 
-    await expect(page.getByTestId('mascot-progress-dots')).not.toBeVisible();
-    await expect(page.getByTestId('mascot-tap-hint')).not.toBeVisible();
+    await expect(page.getByTestId('mascot-progress-dots')).not.toBeAttached();
+    await expect(page.getByTestId('mascot-tap-hint')).not.toBeAttached();
   });
 });
