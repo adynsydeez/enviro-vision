@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Project Pyro** — a wildfire simulation platform. Motto: *"Play with fire. Safely."*
 
+**Live deployment:** https://pyro.farzadhayat.dev — frontend-only build on Vercel. Uses `MockWebSocket.js` (client-side Alexandridis CA) with procedural Voronoi vegetation. No backend, no real GIS/fuel/elevation data.
+
 **Target Audience:** Kids, teens, and young adults — not professional firefighters. The goal is environmental literacy and basic tactical thinking around wildfire behaviour. UI should be approachable, engaging, and game-like while remaining grounded in realistic fire science.
 
 Users select a Queensland wildfire scenario, then practice suppression strategies — control lines, water drops, backburns — on a real satellite map locked to a 10×10km area around the location.

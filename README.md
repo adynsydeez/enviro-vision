@@ -4,6 +4,8 @@
 
 ** Best Community Project — QUT AIML Hackathon 2025 (18 teams)**
 
+**Live:** https://pyro.farzadhayat.dev *(light version — client-side simulation only, procedural vegetation, no real GIS data or backend)*
+
 ProjectPyro is a real-time wildfire simulation and interactive firefighting 
 experience built to grow environmental literacy in young people. Users select 
 a real Queensland wildfire scenario, then deploy suppression tactics (water 
