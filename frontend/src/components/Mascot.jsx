@@ -37,7 +37,7 @@ const Mascot = ({ mascotHook, introTotal }) => {
               <div
                 key={i}
                 className={`mascot-dot${i === introIndex ? ' mascot-dot-active' : ''}`}
-                aria-current={i === introIndex ? 'true' : undefined}
+                aria-current={i === introIndex ? 'step' : undefined}
               />
             ))}
           </div>
