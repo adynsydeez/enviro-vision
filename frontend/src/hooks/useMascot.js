@@ -34,6 +34,7 @@ export const useMascot = (scenario) => {
   }, [clearBubble]);
 
   const nextIntro = useCallback(() => {
+    if (isFadingOut) return;
     clearBubble();
 
     const messages = scenario?.introMessages || [];
@@ -52,7 +53,7 @@ export const useMascot = (scenario) => {
         timeoutRef.current = null;
       }, 400);
     }
-  }, [scenario, introIndex, clearBubble]);
+  }, [scenario, introIndex, isFadingOut, clearBubble]);
 
   const triggerRandom = useCallback((category) => {
     const dialogue = scenario?.mascotDialogue?.[category];
