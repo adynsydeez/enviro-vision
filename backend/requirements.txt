@@ -13,12 +13,3 @@ python-multipart
 websockets
 anthropic
 python-dotenv
-uuid
-threading
-asyncio
-json
-dataclasses
-typing
-pydantic
-base64
-zlib
