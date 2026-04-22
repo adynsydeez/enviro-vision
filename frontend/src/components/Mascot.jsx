@@ -25,6 +25,18 @@ const Mascot = ({ mascotHook, introTotal }) => {
       )}
 
       <div className="fixed bottom-4 left-4 flex flex-col items-start z-[2001] pointer-events-none">
+        {showIntroElements && introTotal > 0 && (
+          <div className="mascot-progress-dots" data-testid="mascot-progress-dots">
+            {Array.from({ length: introTotal }).map((_, i) => (
+              <div
+                key={i}
+                className={`mascot-dot${i === introIndex ? ' mascot-dot-active' : ''}`}
+                aria-current={i === introIndex ? 'step' : undefined}
+              />
+            ))}
+          </div>
+        )}
+
         {showBubble && currentMessage && (
           <div
             className={`relative mb-2 max-w-[280px] md:max-w-xs pointer-events-auto mascot-bubble-animate flex flex-col items-start${isIntroActive ? ' cursor-pointer' : ''}`}
@@ -36,18 +48,6 @@ const Mascot = ({ mascotHook, introTotal }) => {
               </p>
             </div>
             <div className="mascot-bubble-tail left-12 md:left-16" />
-          </div>
-        )}
-
-        {showIntroElements && introTotal > 0 && (
-          <div className="mascot-progress-dots" data-testid="mascot-progress-dots">
-            {Array.from({ length: introTotal }).map((_, i) => (
-              <div
-                key={i}
-                className={`mascot-dot${i === introIndex ? ' mascot-dot-active' : ''}`}
-                aria-current={i === introIndex ? 'step' : undefined}
-              />
-            ))}
           </div>
         )}
 
