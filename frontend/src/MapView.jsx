@@ -370,6 +370,8 @@ export default function MapView({ scenario, onBack }) {
 
   // Kick off the simulation once the intro is dismissed and the connection is open.
   // paused starts as false (matching the backend), so no togglePause needed here.
+  // isIntroActive stays true during the 400ms vignette fade-out, so the sim
+  // cannot start until the overlay unmounts.
   useEffect(() => {
     if (!isIntroActive && status === "running" && !hasStartedRef.current) {
       hasStartedRef.current = true;
