@@ -1,5 +1,9 @@
-import daguilar from '../assets/D\'Aguilar.jpg';
-import lamington from '../assets/Lamington-National-Park.jpg';
+import daguilar from '../assets/D-Aguilar.jpg';
+import lamington from '../assets/Lamington.jpg';
+import glassHouseMountains from '../assets/Glass-House-Mountains.jpg';
+import bunyaMountains from '../assets/Bunya-Mountains.jpg';
+import girraween from '../assets/Girraween.jpg';
+import eungella from '../assets/Eungella.jpg';
 
 export const RISK_LEVELS = {
   Catastrophic: { label: 'Catastrophic', color: 'text-red-400', bg: 'bg-red-950 border-red-800' },
@@ -68,7 +72,7 @@ const scenarios = [
     description: 'Open eucalypt forest and heath across the Sunshine Coast hinterland. Fast-moving grassfire flanks driven by strong north-westerlies threatened townships and wildlife corridors.',
     areaHa: '28,000',
     risk: 'Extreme',
-    image: daguilar,
+    image: glassHouseMountains,
     introMessages: [
       "The Glass House Mountains are getting a bit too much heat!",
       "Sunshine Coast? More like Smoke Coast right now!",
@@ -93,7 +97,7 @@ const scenarios = [
     description: 'Ancient bunya pine and hoop pine rainforest on the Darling Downs escarpment. Drought-stressed understorey carried fire into stands not burned in living memory.',
     areaHa: '12,000',
     risk: 'High',
-    image: daguilar,
+    image: bunyaMountains,
     introMessages: [
       "Ancient pines in Bunya are in trouble!",
       "Don't let the Bunya nuts roast too early!",
@@ -118,7 +122,7 @@ const scenarios = [
     description: 'Granite-belt dry sclerophyll on the Queensland–NSW border. Record heat and zero humidity produced extreme fire behaviour across exposed rock slopes and stringybark forest.',
     areaHa: '36,000',
     risk: 'Catastrophic',
-    image: daguilar,
+    image: girraween,
     introMessages: [
       "Girraween is feeling the 'Record Heat'!",
       "Granite-belt? More like Fire-belt today!",
@@ -143,7 +147,7 @@ const scenarios = [
     description: 'Tropical and subtropical rainforest on the Clarke Range inland from Mackay. Unprecedented fire penetration into wet sclerophyll driven by the longest recorded dry spell in the region.',
     areaHa: '9,000',
     risk: 'Extreme',
-    image: daguilar,
+    image: eungella,
     introMessages: [
       "Tropical Eungella is having an 'unprecedented' bad day!",
       "Rainforest? It's more of a 'Fireforest' right now!",
