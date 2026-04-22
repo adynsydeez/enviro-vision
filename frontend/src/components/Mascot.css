@@ -54,3 +54,41 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
+
+.mascot-intro-vignette {
+  background: radial-gradient(
+    ellipse 65% 75% at 11% 97%,
+    transparent 0%,
+    rgba(0, 0, 0, 0.30) 40%,
+    rgba(0, 0, 0, 0.72) 100%
+  );
+  opacity: 1;
+  transition: opacity 400ms ease-out;
+}
+
+.mascot-intro-vignette-fading {
+  opacity: 0;
+}
+
+.mascot-progress-dots {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  padding-left: 4px;
+  margin-bottom: 8px;
+  pointer-events: none;
+}
+
+.mascot-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(249, 115, 22, 0.35);
+  transition: width 200ms ease-out, border-radius 200ms ease-out, background 200ms ease-out;
+}
+
+.mascot-dot-active {
+  width: 14px;
+  border-radius: 3px;
+  background: #f97316;
+}
