@@ -791,7 +791,7 @@ export default function MapView({ scenario, onBack }) {
           onToolSelect={handleToolSelect}
         />
       )}
-      <Mascot mascotHook={mascotHook} />
+      <Mascot mascotHook={mascotHook} introTotal={scenario.introMessages?.length ?? 0} />
     </div>
   );
 }

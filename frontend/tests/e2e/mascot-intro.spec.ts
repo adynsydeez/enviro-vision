@@ -1,0 +1,46 @@
+import { test, expect } from '@playwright/test';
+import { LandingPage } from './pages/LandingPage';
+import { SimulationPage } from './pages/SimulationPage';
+
+test.describe('Mascot intro overlay', () => {
+  test.beforeEach(async ({ page }) => {
+    const landing = new LandingPage(page);
+    await landing.goto();
+    await landing.launchScenario("D'Aguilar National Park");
+  });
+
+  test('vignette overlay is visible during intro', async ({ page }) => {
+    const overlay = page.getByRole('button', { name: /next intro message/i });
+    await expect(overlay).toBeVisible({ timeout: 5_000 });
+    await expect(overlay).toHaveClass(/mascot-intro-vignette/);
+  });
+
+  test('progress dots are visible and active dot advances on click', async ({ page }) => {
+    const dots = page.getByTestId('mascot-progress-dots');
+    await expect(dots).toBeVisible({ timeout: 5_000 });
+
+    // First dot is active
+    const activeDots = dots.locator('.mascot-dot-active');
+    await expect(activeDots).toHaveCount(1);
+
+    // Click to advance to second message
+    await page.getByRole('button', { name: /next intro message/i }).click();
+
+    // Dots still visible with exactly one active
+    await expect(dots).toBeVisible();
+    await expect(dots.locator('.mascot-dot-active')).toHaveCount(1);
+  });
+
+  test('overlay and dots are removed after intro is dismissed', async ({ page }) => {
+    const sim = new SimulationPage(page);
+    await sim.dismissIntro();
+
+    await expect(
+      page.getByRole('button', { name: /next intro message/i })
+    ).not.toBeVisible({ timeout: 1_000 });
+
+    await expect(
+      page.getByTestId('mascot-progress-dots')
+    ).not.toBeVisible();
+  });
+});
