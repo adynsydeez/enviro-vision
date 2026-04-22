@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**FireCommander** — a wildfire simulation platform. Motto: *"Play with fire. Safely."*
+**Project Pyro** — a wildfire simulation platform. Motto: *"Play with fire. Safely."*
 
 **Target Audience:** Kids, teens, and young adults — not professional firefighters. The goal is environmental literacy and basic tactical thinking around wildfire behaviour. UI should be approachable, engaging, and game-like while remaining grounded in realistic fire science.
 

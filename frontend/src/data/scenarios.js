@@ -25,7 +25,7 @@ const scenarios = [
     image: daguilar,
     introMessages: [
       "Whoa! Look at those flames in D'Aguilar!",
-      "I'm your Fire Commander assistant. Let's save some trees!",
+      "I'm your Project Pyro assistant. Let's save some trees!",
       "I may be just a mascot, but I've got some serious firefighting skills!",
       "Click anywhere to see the mission details..."
     ],
