@@ -52,8 +52,8 @@ const Mascot = ({ mascotHook, introTotal }) => {
         )}
 
         <div
-          className={`w-24 h-24 md:w-32 md:h-32 pointer-events-auto ${showIntroElements ? 'mascot-pulse' : 'mascot-float'}${isIntroActive ? ' cursor-pointer' : ''}`}
-          onClick={isIntroActive ? nextIntro : undefined}
+          className={`w-24 h-24 md:w-32 md:h-32 pointer-events-auto ${showIntroElements ? 'mascot-pulse cursor-pointer' : 'mascot-float'}`}
+          onClick={showIntroElements ? nextIntro : undefined}
         >
           <img
             src="/mascot-ingame.png"
